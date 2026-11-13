@@ -88,3 +88,13 @@ def test_weekend_above_midweek(result):
     fri_sun = d[d["dow"].isin([4, 5, 6])]["tickets"].mean()
     tue_wed = d[d["dow"].isin([1, 2])]["tickets"].mean()
     assert fri_sun > 1.2 * tue_wed
+
+
+def test_calibration_gives_monthly_mean_for_2025():
+    cfg = cfglib.load()                      # target_tickets is null: calibrated
+    assert cfg["target_tickets"] is None
+    long, cal, _ = build_demand(cfg, seed=11)
+    d = daily(long, cal)
+    monthly = d[d["year"] == 2025].groupby("month_id")["tickets"].sum()
+    assert abs(monthly.mean() - cfg["calibration"]["monthly_mean"]) / cfg["calibration"]["monthly_mean"] < 0.03
+    assert 8_000_000 < int(long["tickets"].sum()) < 10_500_000

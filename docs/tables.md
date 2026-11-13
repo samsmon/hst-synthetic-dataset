@@ -55,7 +55,7 @@ Conventions: every table has a surrogate key `id`, foreign keys are `<entity>_id
 | `group_booking` | One group booking agreement (BAK in the source), at least 20 passengers: company, period, dates, route, amounts, promo, status, employees | Header of a group. `pending` until its tickets are classified, then `checked` | GTV `dokumen_bak`. Added company, route, counts, amounts, promo, due date, employees |
 | `group_booking_detail` | Departure dates of a booking | Date list used to match tickets to a booking | GTV `dokumen_bak_detail` |
 | `trip` | One scheduled train run on a date with direction and seat capacity | Capacity and load factor; ties tickets to a run | New |
-| `ticket_sales` | One ticket per row. Main table (target 1,000,000 rows) | Core of ML and BI: passenger, trip, route, stations, dates, class, fare, base price, discount, service fee, total, status, channel, issuing employee and station | GTV `data_ticketsales`. Dates became `date` and `time`; price split into base, discount, fee and total; operator text replaced by employee link; added trip, route, fare, status |
+| `ticket_sales` | One ticket per row. Main table (about 9.2 million rows) | Core of ML and BI: passenger, trip, route, stations, dates, class, fare, base price, discount, service fee, total, status, channel, issuing employee and station | GTV `data_ticketsales`. Dates became `date` and `time`; price split into base, discount, fee and total; operator text replaced by employee link; added trip, route, fare, status |
 | `refund` | Refund of a ticket: date, amount, fee, reason, processing employee | Cancellation analysis; turns a ticket into `refunded` | The GTV code read a `data_refund` table that its migrations never created |
 
 ### Money

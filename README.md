@@ -6,7 +6,7 @@ Synthetic ticketing dataset for a fictional high-speed train (HST) operator, bui
 
 ## Goals
 
-- About 1,000,000 ticket rows (`ticket_sales`) between 2020 and 2025, from all sales channels.
+- About 9.2 million ticket rows (`ticket_sales`) between 2020 and 2025, from all sales channels. 2025 averages 200,000 tickets per month.
 - Group travel is a random 15 to 35 percent of tickets each month. A group has at least 20 passengers.
 - Demand that follows real-world patterns: COVID collapse and recovery, Lebaran peaks, Christmas and New Year, school holidays, weekends, limited by trip capacity.
 - Pricing and discounts that react to demand: crowded periods get small discounts, quiet periods larger ones, groups get tiered discounts, and random promos run each month (for example a "February Deals" offer of 20 percent for groups of at least 20 passengers).
@@ -85,14 +85,14 @@ Lebaran dates used: 2020-05-24, 2021-05-13, 2022-05-02, 2023-04-22, 2024-04-10, 
 
 | Entity | Approx. rows |
 |---|---|
-| tickets | 1,000,000 |
+| tickets | about 9.2 million |
 | group tickets | 15 to 35 percent per month |
-| group bookings | 4,000 to 9,000 |
-| trips | 4,000 to 12,000 |
-| bank statement lines | 12,000 to 25,000 |
-| customers | 150,000 to 250,000 |
-| frequent cards | 30,000 to 50,000 |
-| employees | 300 to 500 |
+| group bookings | 40,000 to 70,000 |
+| trips | 25,000 to 45,000 |
+| bank statement lines | 100,000 to 200,000 |
+| customers | 1,000,000 to 2,000,000 |
+| frequent cards | 200,000 to 400,000 |
+| employees | 400 to 600 over the period |
 
 ## ML and BI targets
 

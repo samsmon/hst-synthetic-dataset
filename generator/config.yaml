@@ -2,7 +2,14 @@
 # Rules and reasons are in docs/design.md.
 
 seed: 42
-target_tickets: 1000000
+
+# Total size. Either fix the total with target_tickets, or leave it null and
+# calibrate from the monthly average of one year (the total follows).
+# Use --tickets on the command line for small development runs.
+target_tickets: null
+calibration:
+  year: 2025
+  monthly_mean: 200000           # about 9.2 million tickets over 2020 to 2025
 
 period:
   start: 2020-01-01

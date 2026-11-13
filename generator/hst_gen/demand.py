@@ -69,22 +69,34 @@ def route_shares(cal: pd.DataFrame, cfg: dict, seed: int) -> np.ndarray:
     return per_month[idx]
 
 
-def expected_tickets(cal: pd.DataFrame, cfg: dict, seed: int) -> np.ndarray:
-    """Expected tickets per day and route, scaled to the target total."""
+def expected_tickets(cal: pd.DataFrame, cfg: dict, seed: int):
+    """Expected tickets per day and route, scaled to the target. Returns (mu, target total).
+
+    With target_tickets set, the total is fixed. With target_tickets null, the scale
+    is calibrated so the calibration year averages calibration.monthly_mean per month
+    and the total follows from that.
+    """
     weekly = np.array([cfg["weekly"][k] for k in DOW_KEYS])[cal["dow"].values]
     shock_rng = rnglib.stream(seed, "demand.shock")
     shock = np.exp(cfg["noise"]["day_shock_sigma"] * shock_rng.standard_normal(len(cal)))
     day = regime_level(cal, cfg["regime_knots"]) * trend_factor(cal, cfg) * weekly * event_multiplier(cal, cfg) * shock
     mu = day[:, None] * route_shares(cal, cfg, seed)
-    return mu * (cfg["target_tickets"] / mu.sum())
+    if cfg.get("target_tickets"):
+        target = int(cfg["target_tickets"])
+        return mu * (target / mu.sum()), target
+    calib = cfg["calibration"]
+    year_rows = cal["year"].values == calib["year"]
+    scale = 12 * calib["monthly_mean"] / mu[year_rows].sum()
+    mu = mu * scale
+    return mu, int(round(mu.sum()))
 
 
-def draw_counts(mu: np.ndarray, cfg: dict, seed: int) -> np.ndarray:
+def draw_counts(mu: np.ndarray, target: int, cfg: dict, seed: int) -> np.ndarray:
     """Negative binomial draw (gamma-Poisson), then adjust to exactly the target total."""
     rng = rnglib.stream(seed, "demand.count")
     size = cfg["noise"]["nb_size"]
     counts = rng.poisson(rng.gamma(size, mu / size)).astype(np.int64)
-    diff = int(cfg["target_tickets"] - counts.sum())
+    diff = int(target - counts.sum())
     if diff > 0:
         counts += rng.multinomial(diff, (mu / mu.sum()).ravel()).reshape(mu.shape)
     elif diff < 0:
@@ -139,8 +151,8 @@ def build_demand(cfg: dict, seed: int | None = None):
     """Run stage 1. Returns the long table (day x route) and the calendar."""
     seed = cfg["seed"] if seed is None else seed
     cal = build_calendar(cfg)
-    mu = expected_tickets(cal, cfg, seed)
-    counts = draw_counts(mu, cfg, seed)
+    mu, target = expected_tickets(cal, cfg, seed)
+    counts = draw_counts(mu, target, cfg, seed)
     groups, shares = split_groups(cal, counts, cfg, seed)
     route_ids = sorted(cfg["routes"]["base_share"])
     rows = []
