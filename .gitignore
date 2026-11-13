@@ -1,0 +1,10 @@
+__pycache__/
+.venv/
+.env
+*.pyc
+.idea/
+.vscode/
+# generated data is large; keep out of git
+output/
+*.csv
+*.parquet
