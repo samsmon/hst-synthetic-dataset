@@ -6,45 +6,55 @@ Synthetic ticketing dataset for a fictional high-speed train (HST) operator, bui
 
 ## Goals
 
-- About 1,000,000 ticket rows (`data_ticketsales`) between 2020 and 2025.
+- About 1,000,000 ticket rows (`ticket_sales`) between 2020 and 2025.
 - Demand that follows real-world patterns: COVID collapse and recovery, Lebaran peaks, Christmas and New Year, school holidays, weekends.
 - Pricing and discounts that react to demand: crowded periods get small discounts, quiet periods get larger ones, groups get tiered discounts, and one fictional company anniversary promo runs each year.
-- Repeat customers (commuters, occasional, one-off) so churn and frequency can be modelled.
+- Repeat customers (commuters, occasional, one-time) so churn and frequency can be modelled.
+- Employees with position, NIP and home station, linked to the tickets they issue, the bookings they handle and the cards they register.
 - Two layers: an operational schema (OLTP) and a star schema (DWH), both for PostgreSQL.
+- Everything is in English (tables, columns, values, messages). Only generated person and company names are Indonesian.
 
 The timeline is fictional: the operator is assumed to run since 2020. Do not present the data as real figures of any actual railway.
 
 ## Source schemas
 
-The operational layer extends two existing Laravel apps.
+The operational layer extends two existing Laravel apps. Source-to-new names are in [docs/column-mapping.md](docs/column-mapping.md).
 
 | Source | Tables | Role |
 |---|---|---|
-| group-ticket verification app | `dokumen_bak`, `dokumen_bak_detail`, `data_ticketsales`, `dokumen_rekeningkoran` | group bookings (BAK), tickets, bank statement |
-| frequent card admin app | `maindata` (cards), `subdata` (redeems) | frequent customer card (FCC) and quota redemption |
+| group-ticket verification app | `dokumen_bak`, `dokumen_bak_detail`, `data_ticketsales`, `dokumen_rekeningkoran` | group bookings, tickets, bank statement |
+| frequent card admin app | `maindata` (cards), `subdata` (redemptions) | frequent customer card (FCC) and quota redemption |
 
-Changes from the sources:
+New in this dataset: `employee`, `position`, `department`, `station` (richer), `sales_channel`, `company`, `customer`, `promo`, plus the answer-key tables `group_booking_payment` and `anomaly_label`.
 
-- Bank statement becomes transaction level: date, account number, credit or debit, amount, counterparty name, counterparty account, bank, message, balance.
-- BAK gains passenger count, total value, total discount and route.
-- Ticket dates become real `date` columns, and price is split into base price, discount, tax and final price.
-- New master tables: `pelanggan` (person) and `perusahaan` (fictional company, the second party of a BAK and the sender in the bank statement).
-
-## Planned entity relations
+## Entity relations
 
 ```mermaid
 erDiagram
-    perusahaan ||--o{ bak : "second party"
-    bak ||--o{ bak_detail : "departure dates"
-    bak ||--o{ ticketsales : "bak_id"
-    bak ||--o{ rekening_koran : "payment message"
-    pelanggan ||--o{ fcc_kartu : "id_num"
-    fcc_kartu ||--o{ fcc_redeem : "id_fcc"
-    fcc_redeem ||--|| ticketsales : "id_pesanan = order_no"
-    pelanggan ||--o{ ticketsales : "nik_passport_no"
+    company ||--o{ group_booking : "books"
+    group_booking ||--o{ group_booking_detail : "departure dates"
+    group_booking ||--o{ ticket_sales : "group_booking_id"
+    group_booking ||--o{ group_booking_payment : "paid by"
+    bank_statement ||--o| group_booking_payment : "matched to"
+    customer ||--o{ fcc_card : "owns"
+    fcc_card ||--o{ fcc_redemption : "card_id"
+    fcc_redemption ||--|| ticket_sales : "order_id"
+    customer ||--o{ ticket_sales : "travels"
+    employee ||--o{ ticket_sales : "issued_by"
+    employee ||--o{ group_booking : "created / verified"
+    employee ||--o{ fcc_card : "registered_by"
+    employee ||--o{ fcc_redemption : "redeemed_by"
+    employee }o--|| position : "has"
+    position }o--|| department : "in"
+    employee }o--o| station : "home station"
+    station ||--o{ ticket_sales : "origin / destination / issue"
+    sales_channel ||--o{ ticket_sales : "sold via"
+    promo ||--o{ ticket_sales : "applied"
+    route ||--o{ group_booking : "route"
+    route ||--o{ fcc_card : "route"
 ```
 
-Reading guide: a BAK groups tickets and is paid through one or more bank statement lines. A frequent card redeem produces a ticket order with the same order number.
+Reading guide: a group booking groups tickets and is paid through one or more bank statement lines. A card redemption produces a ticket with the same `order_id`. Staffed channels record the issuing employee and station; self-service channels leave them empty.
 
 ## Frequent card rules (from the source app)
 
@@ -53,7 +63,7 @@ Reading guide: a BAK groups tickets and is paid through one or more bank stateme
 | G | 10 | 60 days |
 | S | 6 | 30 days |
 
-Route codes: `01` Jakarta to Bandung, `02` Jakarta to Karawang, `03` Karawang to Bandung. A redeem is only valid while quota remains and the card is not expired.
+Route codes: `01` Jakarta to Bandung, `02` Jakarta to Karawang, `03` Karawang to Bandung. A redemption is only valid while quota remains and the card is not expired.
 
 ## Demand model
 
@@ -68,18 +78,20 @@ Lebaran dates used: 2020-05-24, 2021-05-13, 2022-05-02, 2023-04-22, 2024-04-10, 
 | Entity | Approx. rows |
 |---|---|
 | tickets | 1,000,000 |
-| BAK | 20,000 to 30,000 |
+| group bookings | 20,000 to 30,000 |
 | bank statement lines | 40,000 to 60,000 |
 | customers | 150,000 to 250,000 |
 | frequent cards | 30,000 to 50,000 |
+| employees | 300 to 500 |
 
 ## ML and BI targets
 
 - Daily demand per route.
 - Discount amount.
 - Customer churn and visit frequency.
-- Late or short payment of a BAK.
-- Injected anomalies (underpayment, duplicates, name mismatch), marked by a label column.
+- Late or short payment of a group booking.
+- Sales workload and performance per employee.
+- Injected anomalies (underpayment, duplicates, name mismatch), marked in `anomaly_label`.
 
 ## Output
 
@@ -89,9 +101,9 @@ Lebaran dates used: 2020-05-24, 2021-05-13, 2022-05-02, 2023-04-22, 2024-04-10, 
 
 ## Roadmap
 
-1. Design document and PostgreSQL DDL (OLTP and DWH). Done: see [docs/design.md](docs/design.md), [docs/tables.md](docs/tables.md) and `sql/`.
+1. Design document and PostgreSQL DDL (OLTP and DWH). Done: see [docs/design.md](docs/design.md), [docs/tables.md](docs/tables.md), [docs/column-mapping.md](docs/column-mapping.md) and `sql/`.
 2. Python generator with a fixed random seed, so runs are reproducible.
-3. Validation checks (quota, expiry, payment totals against BAK totals).
+3. Validation checks (quota, expiry, payment totals against booking totals).
 4. Load into the shared PostgreSQL server.
 
 ## License
