@@ -14,7 +14,10 @@ CITIES = {
 WORDS = ["Maju", "Jaya", "Sinar", "Cahaya", "Berkah", "Mitra", "Karya", "Mandiri", "Abadi", "Bersama",
          "Sejahtera", "Harapan", "Utama", "Prima", "Nusantara", "Global", "Sentosa", "Makmur", "Surya",
          "Bintang", "Garuda", "Pelangi", "Lestari", "Gemilang", "Cipta", "Handal", "Perkasa", "Wijaya",
-         "Tunas", "Mulia", "Bumi", "Samudra", "Cakra", "Dharma", "Tirta", "Wira", "Anugerah", "Citra"]
+         "Tunas", "Mulia", "Bumi", "Samudra", "Cakra", "Dharma", "Tirta", "Wira", "Anugerah", "Citra",
+         "Permata", "Kencana", "Mutiara", "Rajawali", "Kartika", "Nusa", "Sriwijaya", "Mahkota", "Candra", "Bahari",
+         "Inti", "Pertiwi", "Raya", "Lintas", "Delta", "Esa", "Fajar", "Gunung", "Harmoni", "Intan",
+         "Jingga", "Kemuning", "Lentera", "Merdeka", "Nirwana", "Pratama", "Rinjani", "Sakti", "Taruna", "Unggul"]
 SECTORS = ["Logistik", "Teknologi", "Konstruksi", "Energi", "Perdagangan", "Pangan", "Tekstil", "Otomotif",
            "Farmasi", "Properti", "Media", "Telekomunikasi", "Manufaktur", "Konsultan", "Percetakan"]
 TRAVEL = ["Tour & Travel", "Wisata", "Holiday", "Travel", "Trans Wisata", "Nusantara Tour"]
@@ -71,14 +74,15 @@ def company_name(rng: np.random.Generator, kind: str, city: str) -> str:
     if kind == "school":
         style = rng.integers(4)
         if style == 0:
-            return f"SMA Negeri {rng.integers(1, 30)} {city}"
+            return f"SMA Negeri {rng.integers(1, 80)} {city}"
         if style == 1:
             return f"SMK {w()} {city}"
         if style == 2:
             a, b = two_words()
             return f"Universitas {a} {b}"
-        return f"SMP Islam Al-{w()}"
+        return f"SMP Islam Al-{w()} {city}"
     if kind == "government":
         level = "Kota" if rng.random() < 0.5 else "Kabupaten"
-        return f"{GOV_UNITS[rng.integers(len(GOV_UNITS))]} {level} {city}"
+        zone = ["Wilayah Barat", "Wilayah Timur", "Wilayah Utara", "Wilayah Selatan", "Wilayah Pusat"][rng.integers(5)]
+        return f"{GOV_UNITS[rng.integers(len(GOV_UNITS))]} {zone} {level} {city}"
     return f"{['Komunitas', 'Paguyuban', 'Klub'][rng.integers(3)]} {HOBBIES[rng.integers(len(HOBBIES))]} {w()} {city}"
