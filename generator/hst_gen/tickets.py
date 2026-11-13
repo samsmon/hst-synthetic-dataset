@@ -9,6 +9,7 @@ from .bookings import Ids, assign_directions, booking_frame, pack_month
 from .customers import CustomerBook
 from .pricing import demand_discount_pct, discount_amount, fare_lookup, peak_uplift, round_price, step_discount
 from .reference import STAFFED_CHANNELS, route_stations
+from .refunds import process_status_and_refunds
 from .vecnames import ORDER_MULT, REF_MULT, TICKET_MULT, NIK_MULT, People, scatter
 
 DOW_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
@@ -270,13 +271,23 @@ def generate_month(st: State, month_id: int) -> dict:
         bk["file_path"] = np.char.add(np.char.add(np.char.add("bak/", bk["period"].to_numpy()), "/"), bk["file_name"].to_numpy())
         bk["created_at"] = np.char.add(_dstr(bk["document_date"].to_numpy().astype("datetime64[D]")), " 09:00:00")
 
+    ref_rng = rnglib.stream(ctx.seed, f"refunds.{month_id}")
+    ref_cfg = cfg.get("stage4", {}).get("refunds")
+    if ref_cfg is not None and "cs" in ctx.staff:
+        ticket_status, refund_df = process_status_and_refunds(
+            tid, take(purchase), take(dep_date), take(total), take(channel),
+            kind_s == 1, np.datetime64(s3["as_of"]), ref_cfg, ctx.staff["cs"], ref_rng, st.ids)
+    else:
+        ticket_status = np.where(take(dep_date) <= np.datetime64(s3["as_of"]), "used", "issued")
+        refund_df = None
+
     nullable = lambda a: np.where(a == 0, "", a.astype("U20"))                         # noqa: E731
     tickets = pd.DataFrame({
         "id": tid, "seq_no": seq_no, "period": period, "passenger_name": take(cust["name"]),
         "passenger_id_number": take(cust["id_number"]), "customer_id": nullable(take(cust["customer_id"])),
         "group_booking_id": nullable(take(book_id)), "nationality": take(cust["nationality"]), "order_id": order_id,
         "ticket_no": np.char.add("T", scatter(tid, TICKET_MULT, 12)),
-        "status": np.where(take(dep_date) <= np.datetime64(s3["as_of"]), "used", "issued"), "trip_id": take(trip_id),
+        "status": ticket_status, "trip_id": take(trip_id),
         "route_id": take(route), "purchase_date": _dstr(take(purchase)), "departure_date": _dstr(take(dep_date)),
         "departure_time": TIME_STR[take(dep_min)], "origin_station_id": take(origin), "destination_station_id": take(dest),
         "arrival_date": _dstr(take(dep_date)), "arrival_time": TIME_STR[take(arr_min)], "seat_class": take(seat),
@@ -289,6 +300,8 @@ def generate_month(st: State, month_id: int) -> dict:
 
     out = {"ticket_sales": tickets, "ticket_group_truth": truth, "n_individual": n_i, "n_group": n_g,
            "segment": take(cust["segment"]), "channel": take(channel), "pending": 0 if not nb else int(pending.sum())}
+    if refund_df is not None:
+        out["refund"] = refund_df
     if nb:
         det_n = len(leg_day)
         out["group_booking_detail"] = pd.DataFrame({

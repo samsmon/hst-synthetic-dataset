@@ -85,3 +85,79 @@ FROM oltp.customer c
 JOIN (SELECT customer_id, min(purchase_date) AS first_purchase FROM oltp.ticket_sales
       WHERE customer_id IS NOT NULL GROUP BY customer_id) f ON f.customer_id = c.id
 WHERE c.created_at::date > f.first_purchase;
+
+-- ------------------------------------------------------------- stage 4 checks
+SELECT 'redemption outside card validity or quota exceeded', count(*)
+FROM (
+    SELECT r.card_id, count(*) AS cnt, c.initial_quota,
+           min(r.redeemed_at::date) AS min_red, max(r.redeemed_at::date) AS max_red,
+           c.registration_date, c.expiry_date
+    FROM oltp.fcc_redemption r
+    JOIN oltp.fcc_card c ON c.id = r.card_id
+    GROUP BY r.card_id, c.initial_quota, c.registration_date, c.expiry_date
+) x
+WHERE x.cnt > x.initial_quota
+   OR x.min_red < x.registration_date
+   OR x.max_red > x.expiry_date;
+
+SELECT 'card remaining quota mismatch', count(*)
+FROM oltp.fcc_card c
+LEFT JOIN (
+    SELECT card_id, count(*) AS cnt FROM oltp.fcc_redemption GROUP BY card_id
+) r ON r.card_id = c.id
+WHERE c.remaining_quota <> (c.initial_quota - COALESCE(r.cnt, 0));
+
+SELECT 'card route differs from ticket route', count(*)
+FROM oltp.fcc_redemption r
+JOIN oltp.fcc_card c ON c.id = r.card_id
+JOIN oltp.ticket_sales t ON t.id = r.ticket_sales_id
+WHERE c.route_id <> t.route_id;
+
+SELECT 'refund date after departure date or before purchase date', count(*)
+FROM oltp.refund r
+JOIN oltp.ticket_sales t ON t.id = r.ticket_sales_id
+WHERE r.refund_date > t.departure_date OR r.refund_date < t.purchase_date;
+
+SELECT 'refund amount exceeds total price', count(*)
+FROM oltp.refund r
+JOIN oltp.ticket_sales t ON t.id = r.ticket_sales_id
+WHERE r.refund_amount > t.total_price;
+
+SELECT 'refunded ticket without refund row', count(*)
+FROM oltp.ticket_sales t
+LEFT JOIN oltp.refund r ON r.ticket_sales_id = t.id
+WHERE t.status = 'refunded' AND r.id IS NULL;
+
+SELECT 'non-refunded ticket with refund row', count(*)
+FROM oltp.ticket_sales t
+JOIN oltp.refund r ON r.ticket_sales_id = t.id
+WHERE t.status <> 'refunded';
+
+SELECT 'discontinuous bank balance', count(*)
+FROM (
+    SELECT account_no, transaction_date, id, direction, amount, balance,
+           LAG(balance) OVER (PARTITION BY account_no ORDER BY transaction_date, id) AS prev_balance
+    FROM oltp.bank_statement
+) x
+WHERE prev_balance IS NOT NULL
+  AND balance <> (CASE WHEN direction = 'credit' THEN prev_balance + amount ELSE prev_balance - amount END);
+
+SELECT 'clean booking payments differ from total amount', count(*)
+FROM oltp.group_booking b
+LEFT JOIN (
+    SELECT group_booking_id, sum(allocated_amount) AS total_paid
+    FROM oltp_truth.group_booking_payment
+    GROUP BY group_booking_id
+) p ON p.group_booking_id = b.id
+WHERE b.status = 'checked'
+  AND COALESCE(p.total_paid, 0) <> b.total_amount;
+
+SELECT 'bank credit over-allocated', count(*)
+FROM oltp.bank_statement s
+JOIN (
+    SELECT bank_statement_id, sum(allocated_amount) AS total_alloc
+    FROM oltp_truth.group_booking_payment
+    GROUP BY bank_statement_id
+) p ON p.bank_statement_id = s.id
+WHERE p.total_alloc > s.amount;
+

@@ -219,3 +219,40 @@ stage3:
     1: [1, 2, 3]
     2: [10]
     3: [8]
+
+# ---------------------------------------------------------------- stage 4
+stage4:
+  fcc:
+    type_share: {G: 0.65, S: 0.35}       # type G (quota 10, valid 60d), S (quota 6, valid 30d)
+    validity_days: {G: 60, S: 30}
+    quota: {G: 10, S: 6}
+  refunds:
+    normal_cancel_rate: [0.02, 0.04]     # 2 to 4 percent cancelled normally
+    lockdown_refund_rate: [0.15, 0.25]   # March-June 2020 for tickets bought before March 2020
+    lockdown_window: ["2020-03-01", "2020-06-30"]
+    group_cancel_rate: 0.005             # small share only for group tickets
+    refund_share: 0.65                   # share of cancelled that become refunded vs cancelled (no refund row)
+    reasons:
+      customer_request:  {share: 0.55, fee_pct: 0.25}
+      schedule_change:   {share: 0.25, fee_pct: 0.00}
+      illness:           {share: 0.10, fee_pct: 0.25}
+      duplicate_booking: {share: 0.05, fee_pct: 0.00}
+      other:             {share: 0.05, fee_pct: 0.25}
+    online_cs_processed_share: 0.10      # 90% online refunds have NULL employee, 10% handled by CS
+  bank:
+    operator_accounts: ["1010001234567", "1010007654321"]
+    opening_balances: {"1010001234567": 25000000000.0, "1010007654321": 15000000000.0}
+    account_shares: {"1010001234567": 0.60, "1010007654321": 0.40}
+    patterns:
+      full: 0.60
+      deposit_final: 0.25
+      instalments: 0.10
+      multi_booking: 0.05
+    deposit_pct_range: [0.20, 0.50]
+    instalment_counts: [3, 4]
+    monthly_fees: {"1010001234567": 150000.0, "1010007654321": 120000.0}
+    monthly_interest_rate: 0.0015
+    sender_banks: ["BCA", "Mandiri", "BRI", "BNI", "CIMB Niaga", "Permata", "BSI"]
+    sender_name_variants: {exact: 0.70, upper: 0.15, short: 0.10, typo: 0.05}
+    message_variants: {standard: 0.70, abbreviated: 0.15, typo: 0.10, empty: 0.05}
+

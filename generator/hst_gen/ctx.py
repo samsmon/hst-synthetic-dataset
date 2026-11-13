@@ -86,4 +86,5 @@ def build_context(cfg: dict, seed: int | None = None, tables: dict | None = None
         ctx.staff[int(channel)] = StaffIndex(hist, roles)
     ctx.staff["group_creator"] = StaffIndex(hist, [10])
     ctx.staff["verifier"] = StaffIndex(hist, [12])
+    ctx.staff["cs"] = StaffIndex(hist, [8, 9])
     return ctx

@@ -8,7 +8,7 @@ import pandas as pd
 from .ctx import build_context
 from .tickets import State, generate_month
 
-TABLES = ["ticket_sales", "group_booking", "group_booking_detail", "customer"]
+TABLES = ["ticket_sales", "group_booking", "group_booking_detail", "customer", "refund"]
 
 
 class Stats:

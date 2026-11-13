@@ -7,7 +7,7 @@ class Ids:
     """Running counters so ids stay unique across months."""
 
     def __init__(self):
-        self.next = {"customer": 1, "ticket": 1, "booking": 1, "detail": 1, "nik": 1, "passport": 1, "order": 1, "ref": 1}
+        self.next = {"customer": 1, "ticket": 1, "booking": 1, "detail": 1, "nik": 1, "passport": 1, "order": 1, "ref": 1, "refund": 1}
 
     def take(self, name: str, n: int) -> np.ndarray:
         start = self.next[name]
