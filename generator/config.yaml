@@ -158,3 +158,64 @@ trips:
   last_departure_minute: 1230    # 20:30
   duration_minutes: 47
   to_bandung_share: {mon: 0.50, tue: 0.50, wed: 0.50, thu: 0.50, fri: 0.56, sat: 0.52, sun: 0.44}
+
+# ---------------------------------------------------------------- stage 3
+# Sales channel ids mirror sql/03_reference_data.sql: 1 COUNTER, 2 GROUP, 3 FCC, 4 AGENT, 5 APP, 6 WEB.
+stage3:
+  as_of: 2025-12-31                      # tickets departing after this date would be 'issued', not 'used'
+  pending:
+    last_days: 60                        # bookings departing in the last N days stay pending
+    random_share: 0.015                  # plus this share of older bookings
+  stations:
+    far_end_share: {pdl: 0.35, tgl: 0.65}     # Padalarang vs Tegalluar on routes that reach Bandung
+    offset_minutes: {1: 0, 2: 17, 3: 34, 4: 47}   # minutes from Halim, along the corridor
+  group:
+    size: {min: 20, max: 120, lognormal_mu: 2.9, lognormal_sigma: 0.75}   # passengers = min + lognormal
+    date_count_probs: {1: 0.60, 2: 0.35, 3: 0.05}
+    date_gap_days: [1, 3]
+    first_leg_to_bandung: 0.55
+    lead_days: {median: 28, sigma: 0.6, min: 4, max: 120}
+    purchase_offset_days: [0, 3]
+    due_days_after_document: 14
+    seat_class: {economy: 0.70, premium: 0.15, business: 0.12, first: 0.03}
+    channel: {2: 0.70, 4: 0.30}
+    tier_discount_pct: [[20, 3.0], [30, 6.0], [60, 9.0]]
+    counterparty_variants: {exact: 0.85, upper: 0.10, short: 0.05}
+  individual:
+    seat_class: {economy: 0.55, premium: 0.15, business: 0.22, first: 0.08}
+    commuter_seat_class: {economy: 0.75, premium: 0.12, business: 0.11, first: 0.02}
+    channel_by_year:                      # shares of non-card individual tickets
+      2020: {1: 0.50, 4: 0.10, 5: 0.15, 6: 0.25}
+      2021: {1: 0.42, 4: 0.10, 5: 0.22, 6: 0.26}
+      2022: {1: 0.36, 4: 0.10, 5: 0.30, 6: 0.24}
+      2023: {1: 0.30, 4: 0.10, 5: 0.38, 6: 0.22}
+      2024: {1: 0.28, 4: 0.10, 5: 0.41, 6: 0.21}
+      2025: {1: 0.26, 4: 0.10, 5: 0.44, 6: 0.20}
+    lead_days_mean: {1: 1.0, 3: 2.0, 4: 8.0, 5: 5.0, 6: 6.0}     # exponential mean per channel
+    early_bird_pct: [[30, 3.0], [14, 1.5]]
+  customers:
+    segment_share: {commuter: 0.35, occasional: 0.45, one_time: 0.20}   # of individual tickets
+    commuter_trips_per_month: 9
+    commuter_monthly_churn: 0.012
+    commuter_weight_sigma: 0.5
+    commuter_fcc_share: 0.40             # commuters who hold a card
+    fcc_ticket_share: 0.90               # their tickets bought with the card
+    occasional_new_share: 0.25           # chance an occasional ticket belongs to a first-time customer
+    foreign_share: 0.03
+    age: {mean: 33, sd: 11, min: 17, max: 70}
+  pricing:
+    demand_discount: {reference_load: 0.80, pct_per_load_point: 40.0, max_pct: 12.0}
+    peak_uplift: {from_load: 0.75, full_at_load: 0.95, max: 0.15}
+    max_discount_pct: 40.0
+    service_fee: {1: 0, 2: 0, 3: 0, 4: 5000, 5: 2500, 6: 2500}
+    payment_method:
+      1: {cash: 0.35, debit_card: 0.30, credit_card: 0.10, qris: 0.25}
+      2: {bank_transfer: 1.0}
+      3: {fcc_quota: 1.0}
+      4: {bank_transfer: 0.60, agent_deposit: 0.40}
+      5: {e_wallet: 0.45, virtual_account: 0.25, credit_card: 0.15, qris: 0.15}
+      6: {virtual_account: 0.40, credit_card: 0.25, e_wallet: 0.25, bank_transfer: 0.10}
+  staff_roles:                            # job_position ids allowed to issue per channel
+    1: [1, 2, 3]
+    2: [10]
+    3: [8]

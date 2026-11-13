@@ -14,18 +14,19 @@ Rules the generator must follow. Table meanings are in [tables.md](tables.md), c
 |---|---|
 | tickets (`ticket_sales`, all channels) | about 10.8 million. 2022 to 2025 average 200,000 per month (months between 150,000 and 235,000); 2020 and 2021 are far lower (about 36,000 and 63,000 per month) because of COVID and the opening |
 | group tickets | 15 to 35 percent of tickets per month, about 2.7 million in total |
-| group bookings (20 to 100 passengers) | 55,000 to 85,000 |
+| group bookings (at least 20 passengers) | about 49,000 (each passenger holds a ticket on every departure date) |
 | trips | 30,000 to 40,000 |
 | bank statement lines | 120,000 to 250,000 |
-| customers | 1,200,000 to 2,400,000 |
+| customers | about 2.5 million |
 | frequent cards | 250,000 to 450,000 |
 | employees | about 610 over the period (about 420 active at the end of 2025) |
 
 ## Group share and group size
 
 - For every month draw a group share from a uniform 15 to 35 percent. That month's group tickets are the share times the month's ticket total; the rest are individual tickets (counter, FCC, agent, app, website).
-- A group booking has at least 20 passengers. Sizes are skewed: most 20 to 40, a tail up to 100 for schools and corporates.
-- Group tickets are packed into bookings until the month's group total is reached.
+- A group booking has at least 20 passengers. Sizes are skewed: median about 37, mean about 42, a tail beyond 100 (the cap is 120, plus leftovers of fewer than 20 tickets that join a booking of the same day).
+- A booking has 1 to 3 departure dates (60, 35 and 5 percent), all in the month of its first departure. Every passenger has one ticket on every date, and the direction alternates from date to date (an outbound and a return leg). So a booking holds `passenger_count` times its number of dates in tickets.
+- Group tickets are packed into bookings until the month's group total is reached. Group tickets of a day that cannot fill a booking of 20 become individual tickets of that day, so the realised group share can sit a few tenths of a percent below the drawn share (at full size it stays inside 15 to 35 percent in every month).
 
 ## Demand model
 
@@ -116,7 +117,7 @@ A group booking qualifies when its `document_date` is inside the window, its pas
 | `occasional` | A few trips per year, tends to travel in peak periods |
 | `one_time` | One trip, for example an event |
 
-Churn is built by letting some commuters stop travelling; the stop date is stored as `churn_date`. Anyone who needs a segment must derive it from ticket behaviour and never read `customer_truth`.
+Of the individual tickets, 35 percent go to commuters, 45 percent to occasional travellers and 20 percent to one-time buyers. A commuter pool of a few thousand people per route (about 9 trips a month each, 1.2 percent leaving per month, 40 percent holding a card) is topped up from new people as demand grows. About a quarter of occasional tickets belong to first-time customers, the rest to people who travelled before. Group passengers are not customers (their `customer_id` stays empty). Churn is built by letting some commuters stop travelling; the stop date is stored as `churn_date` (the first day of the month in which they were last active). Anyone who needs a segment must derive it from ticket behaviour and never read `customer_truth`.
 
 ## Frequent card rules
 
@@ -164,9 +165,10 @@ Churn is built by letting some commuters stop travelling; the stop date is store
 
 ## Load plan
 
-1. Generate CSV per table into `output/` (ignored by git).
+1. Generate CSV per table into `output/` (ignored by git). Stage 3 streams `ticket_sales.csv` (about 2.5 GB at full size), `customer.csv`, `group_booking.csv` and `group_booking_detail.csv` month by month.
 2. Run `sql/01_oltp.sql`, `sql/02_oltp_truth.sql`, `sql/03_reference_data.sql` and `sql/04_comments.sql`.
 3. Load the OLTP tables in dependency order: employee, employee_history, company, customer, fcc_card, promo, group_booking and detail, trip, ticket_sales, refund, fcc_redemption, bank_statement.
 4. Load the answer keys into `oltp_truth`: customer_truth, ticket_group_truth, group_booking_payment, anomaly_label.
 5. Rebuild `docs/data-dictionary.md` with `scripts/build_dictionary.py`.
-6. Final target: shared PostgreSQL server, schemas `oltp` and `oltp_truth`. Downstream pipelines read `oltp` only.
+6. Run `sql/05_checks.sql`: every query must return 0 (capacity, direction, staff on duty, promo rules, booking totals and sizes, customers).
+7. Final target: shared PostgreSQL server, schemas `oltp` and `oltp_truth`. Downstream pipelines read `oltp` only.

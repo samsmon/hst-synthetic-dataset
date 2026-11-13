@@ -87,10 +87,10 @@ Lebaran dates used: 2020-05-24, 2021-05-13, 2022-05-02, 2023-04-22, 2024-04-10, 
 |---|---|
 | tickets | about 10.8 million |
 | group tickets | 15 to 35 percent per month |
-| group bookings | 55,000 to 85,000 |
+| group bookings | about 49,000 |
 | trips | 30,000 to 40,000 |
 | bank statement lines | 120,000 to 250,000 |
-| customers | 1,200,000 to 2,400,000 |
+| customers | about 2.5 million |
 | frequent cards | 250,000 to 450,000 |
 | employees | about 610 over the period |
 
@@ -100,7 +100,7 @@ Seven tasks with label, features, time split and metric are defined in [docs/ml-
 
 ## Output
 
-- PostgreSQL DDL, reference data and comments (`sql/01` to `sql/04`), and `.sql` load scripts.
+- PostgreSQL DDL, reference data and comments (`sql/01` to `sql/04`), post-load checks (`sql/05_checks.sql`), and `.sql` load scripts.
 - `.csv` per table.
 - Target: shared PostgreSQL server, schemas `oltp` and `oltp_truth`. Downstream pipelines read `oltp` only.
 
