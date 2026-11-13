@@ -10,8 +10,10 @@ from .report import summarize, svg_chart
 from .report2 import summarize_stage2
 from .report3 import summarize_stage3
 from .report4 import summarize_stage4
+from .report5 import summarize_stage5
 from .stage3 import run_stage3
 from .stage4 import run_stage4
+from .stage5 import run_stage5
 
 
 def cmd_demand(args, cfg):
@@ -56,9 +58,17 @@ def cmd_stage4(args, cfg):
           f"{len(res['redemptions']):,} redemptions, {len(res['statements']):,} bank lines, files in {out}")
 
 
+def cmd_stage5(args, cfg):
+    out = Path(args.out) / "stage5"
+    res = run_stage5(cfg, out)
+    md = summarize_stage5(res["anomalies"], res["took"])
+    (out / "stage5_summary.md").write_text(md, encoding="utf-8")
+    print(f"stage 5 done in {res['took']:.1f}s: {len(res['anomalies']):,} anomaly labels, files in {out}")
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="hst_gen")
-    p.add_argument("command", choices=["demand", "stage2", "stage3", "stage4"])
+    p.add_argument("command", choices=["demand", "stage2", "stage3", "stage4", "stage5"])
     p.add_argument("--config", default=None)
     p.add_argument("--out", default="output")
     p.add_argument("--seed", type=int, default=None)
@@ -69,4 +79,4 @@ def main(argv=None):
         cfg["seed"] = args.seed
     if args.tickets is not None:
         cfg["target_tickets"] = args.tickets
-    {"demand": cmd_demand, "stage2": cmd_stage2, "stage3": cmd_stage3, "stage4": cmd_stage4}[args.command](args, cfg)
+    {"demand": cmd_demand, "stage2": cmd_stage2, "stage3": cmd_stage3, "stage4": cmd_stage4, "stage5": cmd_stage5}[args.command](args, cfg)

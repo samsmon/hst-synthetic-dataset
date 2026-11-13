@@ -256,3 +256,26 @@ stage4:
     sender_name_variants: {exact: 0.70, upper: 0.15, short: 0.10, typo: 0.05}
     message_variants: {standard: 0.70, abbreviated: 0.15, typo: 0.10, empty: 0.05}
 
+# ---------------------------------------------------------------- stage 5
+stage5:
+  rates:
+    underpayment: 0.015         # 1.5% of checked group bookings
+    overpayment: 0.010          # 1.0% of checked group bookings
+    duplicate_payment: 0.010    # 1.0% of bank TRF lines
+    name_mismatch: 0.015        # 1.5% of bank TRF lines
+    duplicate_ticket: 0.005     # 0.5% of tickets
+    date_outlier: 0.010         # 1.0% of individual tickets
+    inactive_issuer: 0.003      # 0.3% of staffed-channel tickets
+  underpayment_cut_range: [0.05, 0.20]       # 5% to 20% cut of total amount
+  overpayment_add_range: [0.05, 0.15]        # 5% to 15% extra of total amount
+  outlier_discount_range: [25.0, 35.0]       # 25% to 35% discount for lead_days <= 1
+  mismatch_names:
+    - "Agus Pratama"
+    - "Bambang Wijaya"
+    - "Dewi Lestari"
+    - "Eko Prasetyo"
+    - "Hendra Setiawan"
+    - "Koperasi Simpan Pinjam Sejahtera"
+    - "Yayasan Bakti Nusantara"
+
+

@@ -51,6 +51,7 @@ def main():
     s2 = data_source / "stage2"
     s3 = data_source / "stage3"
     s4 = data_source / "stage4"
+    s5 = data_source / "stage5"
 
     print(f"1. Initializing DB in {data_dir}...", flush=True)
     run_cmd([str(INITDB), "-D", str(data_dir), "-U", USER, "-A", "trust", "--no-locale", "-E", "UTF8"])
@@ -85,6 +86,7 @@ def main():
             ("oltp_truth.customer_truth", s3 / "hidden" / "customer_truth.csv"),
             ("oltp_truth.ticket_group_truth", s3 / "hidden" / "ticket_group_truth.csv"),
             ("oltp_truth.group_booking_payment", s4 / "hidden" / "group_booking_payment.csv"),
+            ("oltp_truth.anomaly_label", s5 / "hidden" / "anomaly_label.csv"),
         ]
 
         for table, file_path in copies:

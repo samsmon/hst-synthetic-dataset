@@ -32,7 +32,10 @@ WHERE s.issued_by_employee_id IS NOT NULL
       WHERE h.employee_id = s.issued_by_employee_id
         AND h.valid_from <= s.purchase_date AND (h.valid_to IS NULL OR h.valid_to > s.purchase_date)
         AND h.home_station_id = s.issue_station_id
-        AND h.job_position_id = ANY (CASE s.sales_channel_id WHEN 1 THEN ARRAY[1, 2, 3] WHEN 2 THEN ARRAY[10] ELSE ARRAY[8] END));
+        AND h.job_position_id = ANY (CASE s.sales_channel_id WHEN 1 THEN ARRAY[1, 2, 3] WHEN 2 THEN ARRAY[10] ELSE ARRAY[8] END))
+  AND NOT EXISTS (
+      SELECT 1 FROM oltp_truth.anomaly_label a
+      WHERE a.entity_type = 'ticket_sales' AND a.entity_id = s.id AND a.anomaly_type = 'inactive_issuer');
 
 SELECT 'individual promo outside its window or audience', count(*)
 FROM oltp.ticket_sales s JOIN oltp.promo p ON p.id = s.promo_id
@@ -150,6 +153,9 @@ LEFT JOIN (
     GROUP BY group_booking_id
 ) p ON p.group_booking_id = b.id
 WHERE b.status = 'checked'
+  AND NOT EXISTS (
+      SELECT 1 FROM oltp_truth.anomaly_label a
+      WHERE a.entity_type = 'group_booking' AND a.entity_id = b.id AND a.anomaly_type IN ('underpayment', 'overpayment'))
   AND COALESCE(p.total_paid, 0) <> b.total_amount;
 
 SELECT 'bank credit over-allocated', count(*)
@@ -160,4 +166,52 @@ JOIN (
     GROUP BY bank_statement_id
 ) p ON p.bank_statement_id = s.id
 WHERE p.total_alloc > s.amount;
+
+-- ------------------------------------------------------------- stage 5 checks
+SELECT 'anomaly label referencing non-existent ticket', count(*)
+FROM oltp_truth.anomaly_label a
+LEFT JOIN oltp.ticket_sales t ON t.id = a.entity_id
+WHERE a.entity_type = 'ticket_sales' AND t.id IS NULL;
+
+SELECT 'anomaly label referencing non-existent booking', count(*)
+FROM oltp_truth.anomaly_label a
+LEFT JOIN oltp.group_booking b ON b.id = a.entity_id
+WHERE a.entity_type = 'group_booking' AND b.id IS NULL;
+
+SELECT 'anomaly label referencing non-existent bank statement', count(*)
+FROM oltp_truth.anomaly_label a
+LEFT JOIN oltp.bank_statement s ON s.id = a.entity_id
+WHERE a.entity_type = 'bank_statement' AND s.id IS NULL;
+
+SELECT 'underpayment booking not actually underpaid', count(*)
+FROM oltp_truth.anomaly_label a
+JOIN oltp.group_booking b ON b.id = a.entity_id
+LEFT JOIN (
+    SELECT group_booking_id, sum(allocated_amount) AS total_paid
+    FROM oltp_truth.group_booking_payment
+    GROUP BY group_booking_id
+) p ON p.group_booking_id = b.id
+WHERE a.entity_type = 'group_booking' AND a.anomaly_type = 'underpayment'
+  AND COALESCE(p.total_paid, 0) >= b.total_amount;
+
+SELECT 'overpayment booking not actually overpaid', count(*)
+FROM oltp_truth.anomaly_label a
+JOIN oltp.group_booking b ON b.id = a.entity_id
+LEFT JOIN (
+    SELECT group_booking_id, sum(allocated_amount) AS total_paid
+    FROM oltp_truth.group_booking_payment
+    GROUP BY group_booking_id
+) p ON p.group_booking_id = b.id
+WHERE a.entity_type = 'group_booking' AND a.anomaly_type = 'overpayment'
+  AND COALESCE(p.total_paid, 0) <= b.total_amount;
+
+SELECT 'duplicate ticket without a duplicate partner', count(*)
+FROM oltp_truth.anomaly_label a
+JOIN oltp.ticket_sales t ON t.id = a.entity_id
+WHERE a.entity_type = 'ticket_sales' AND a.anomaly_type = 'duplicate_ticket'
+  AND NOT EXISTS (
+      SELECT 1 FROM oltp.ticket_sales o
+      WHERE o.id <> t.id AND o.passenger_id_number = t.passenger_id_number AND o.trip_id = t.trip_id
+  );
+
 
