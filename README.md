@@ -2,7 +2,7 @@
 
 Synthetic ticketing dataset for a fictional high-speed train (HST) operator, built for machine learning and data warehouse / BI practice. All people, companies, bank accounts and IDs are generated. Nothing here is real operational data.
 
-> Status: design phase. Schema and generator are not written yet.
+> Status: design done (docs and DDL). Generator not written yet.
 
 ## Goals
 
@@ -21,7 +21,7 @@ The operational layer extends two existing Laravel apps.
 | Source | Tables | Role |
 |---|---|---|
 | group-ticket verification app | `dokumen_bak`, `dokumen_bak_detail`, `data_ticketsales`, `dokumen_rekeningkoran` | group bookings (BAK), tickets, bank statement |
-| frequent card admin app | `maindata` (cards), `subdata` (redeems) | frequent customer card (FWC) and quota redemption |
+| frequent card admin app | `maindata` (cards), `subdata` (redeems) | frequent customer card (FCC) and quota redemption |
 
 Changes from the sources:
 
@@ -34,14 +34,14 @@ Changes from the sources:
 
 ```mermaid
 erDiagram
-    perusahaan ||--o{ dokumen_bak : "second party"
-    dokumen_bak ||--o{ dokumen_bak_detail : "departure dates"
-    dokumen_bak ||--o{ data_ticketsales : "bak"
-    dokumen_bak ||--o{ rekening_koran : "payment message"
-    pelanggan ||--o{ fwc_kartu : "id_num"
-    fwc_kartu ||--o{ fwc_redeem : "id_fwc"
-    fwc_redeem ||--|| data_ticketsales : "id_pesanan = order_no"
-    pelanggan ||--o{ data_ticketsales : "nik_passport_no"
+    perusahaan ||--o{ bak : "second party"
+    bak ||--o{ bak_detail : "departure dates"
+    bak ||--o{ ticketsales : "bak_id"
+    bak ||--o{ rekening_koran : "payment message"
+    pelanggan ||--o{ fcc_kartu : "id_num"
+    fcc_kartu ||--o{ fcc_redeem : "id_fcc"
+    fcc_redeem ||--|| ticketsales : "id_pesanan = order_no"
+    pelanggan ||--o{ ticketsales : "nik_passport_no"
 ```
 
 Reading guide: a BAK groups tickets and is paid through one or more bank statement lines. A frequent card redeem produces a ticket order with the same order number.
@@ -89,11 +89,11 @@ Lebaran dates used: 2020-05-24, 2021-05-13, 2022-05-02, 2023-04-22, 2024-04-10, 
 
 ## Roadmap
 
-1. Design document and PostgreSQL DDL (OLTP and DWH).
+1. Design document and PostgreSQL DDL (OLTP and DWH). Done: see [docs/design.md](docs/design.md), [docs/tables.md](docs/tables.md) and `sql/`.
 2. Python generator with a fixed random seed, so runs are reproducible.
 3. Validation checks (quota, expiry, payment totals against BAK totals).
 4. Load into the shared PostgreSQL server.
 
 ## License
 
-Not chosen yet.
+MIT, see [LICENSE](LICENSE).
