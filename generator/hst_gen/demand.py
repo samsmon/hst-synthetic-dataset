@@ -73,8 +73,8 @@ def expected_tickets(cal: pd.DataFrame, cfg: dict, seed: int):
     """Expected tickets per day and route, scaled to the target. Returns (mu, target total).
 
     With target_tickets set, the total is fixed. With target_tickets null, the scale
-    is calibrated so the calibration year averages calibration.monthly_mean per month
-    and the total follows from that.
+    is calibrated so the calibration years (first and last year, inclusive) average
+    calibration.monthly_mean per month, and the total follows from that.
     """
     weekly = np.array([cfg["weekly"][k] for k in DOW_KEYS])[cal["dow"].values]
     shock_rng = rnglib.stream(seed, "demand.shock")
@@ -85,8 +85,9 @@ def expected_tickets(cal: pd.DataFrame, cfg: dict, seed: int):
         target = int(cfg["target_tickets"])
         return mu * (target / mu.sum()), target
     calib = cfg["calibration"]
-    year_rows = cal["year"].values == calib["year"]
-    scale = 12 * calib["monthly_mean"] / mu[year_rows].sum()
+    first, last = calib["years"]
+    rows = (cal["year"].values >= first) & (cal["year"].values <= last)
+    scale = 12 * (last - first + 1) * calib["monthly_mean"] / mu[rows].sum()
     mu = mu * scale
     return mu, int(round(mu.sum()))
 

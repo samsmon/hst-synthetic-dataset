@@ -90,11 +90,18 @@ def test_weekend_above_midweek(result):
     assert fri_sun > 1.2 * tue_wed
 
 
-def test_calibration_gives_monthly_mean_for_2025():
+def test_calibration_gives_monthly_mean_over_mature_years():
     cfg = cfglib.load()                      # target_tickets is null: calibrated
     assert cfg["target_tickets"] is None
     long, cal, _ = build_demand(cfg, seed=11)
     d = daily(long, cal)
-    monthly = d[d["year"] == 2025].groupby("month_id")["tickets"].sum()
-    assert abs(monthly.mean() - cfg["calibration"]["monthly_mean"]) / cfg["calibration"]["monthly_mean"] < 0.03
-    assert 8_000_000 < int(long["tickets"].sum()) < 10_500_000
+    monthly = d.groupby("month_id").agg(year=("year", "first"), t=("tickets", "sum"))
+    first, last = cfg["calibration"]["years"]
+    mature = monthly[(monthly["year"] >= first) & (monthly["year"] <= last)]["t"]
+    want = cfg["calibration"]["monthly_mean"]
+    assert abs(mature.mean() - want) / want < 0.03
+    for year in range(first, last + 1):                 # every mature year sits in a similar range
+        mean = monthly[monthly["year"] == year]["t"].mean()
+        assert 0.85 * want < mean < 1.15 * want, (year, mean)
+    for year in (2020, 2021):                           # COVID and the opening stay far lower
+        assert monthly[monthly["year"] == year]["t"].mean() < 0.5 * want

@@ -8,8 +8,8 @@ seed: 42
 # Use --tickets on the command line for small development runs.
 target_tickets: null
 calibration:
-  year: 2025
-  monthly_mean: 200000           # about 9.2 million tickets over 2020 to 2025
+  years: [2022, 2025]            # the mature years, COVID and the opening are lower
+  monthly_mean: 200000           # average per month over these years, months range about 175k to 230k
 
 period:
   start: 2020-01-01
@@ -32,9 +32,9 @@ covid_phases:
 # space between the knots. The operator opens in Dec 2019, so early 2020 is a
 # ramp-up that COVID then cuts short.
 regime_knots:
-  - [2020-01-01, 0.55]
-  - [2020-02-29, 0.70]
-  - [2020-03-15, 0.45]
+  - [2020-01-01, 0.30]
+  - [2020-02-29, 0.42]
+  - [2020-03-15, 0.28]
   - [2020-04-15, 0.12]
   - [2020-06-30, 0.10]
   - [2020-09-30, 0.18]
@@ -42,15 +42,14 @@ regime_knots:
   - [2021-03-31, 0.30]
   - [2021-06-30, 0.30]
   - [2021-09-30, 0.34]
-  - [2021-10-31, 0.45]
-  - [2022-03-31, 0.62]
-  - [2022-12-31, 0.85]
-  - [2023-06-30, 1.00]
+  - [2021-11-30, 0.60]
+  - [2022-01-31, 0.82]
+  - [2022-04-30, 1.00]
   - [2025-12-31, 1.00]
 
 trend:
-  start: 2023-01-01              # growth begins after the recovery
-  yearly_growth: 0.08
+  start: 2022-01-01              # slow growth once the network is mature
+  yearly_growth: 0.02
 
 # Extra multipliers on top of the level (mudik bans and the Delta wave).
 restriction_windows:
@@ -88,3 +87,74 @@ groups:
   min_pax: 20
   # Where group tickets fall within a month (relative weights).
   weights: {school_holiday: 1.35, weekend: 0.85, weekday: 1.05, lebaran_window: 0.60, year_end: 0.80}
+
+# ---------------------------------------------------------------- stage 2
+# Position ids and station ids mirror sql/03_reference_data.sql.
+employees:
+  headcount_knots:               # target active employees at that date
+    - [2019-12-01, 110]
+    - [2020-02-29, 125]
+    - [2020-12-31, 115]
+    - [2021-12-31, 150]
+    - [2022-06-30, 300]
+    - [2022-12-31, 360]
+    - [2023-12-31, 390]
+    - [2024-12-31, 410]
+    - [2025-12-31, 420]
+  initial_hire_window: [2018-07-01, 2019-11-30]
+  station_weights: {1: 0.34, 2: 0.12, 3: 0.16, 4: 0.38}      # Halim, Karawang, Padalarang, Tegalluar
+  monthly_attrition: {contract: 0.018, permanent: 0.006}
+  promotion: {min_tenure_months: 18, monthly_hazard: 0.008}
+  transfer_monthly_hazard: 0.004
+  min_tenure_for_vacancy_months: 12
+  # share = share of non-singleton headcount; singleton: per_station or hq (exactly one holder)
+  # next = promotion target; supervisor = position of the supervisor at the same station (or hq)
+  positions:
+    - {id: 1,  share: 0.26, station_based: true,  next: 2,    supervisor: 3,    contract_share: 0.40}
+    - {id: 2,  share: 0.07, station_based: true,  next: 3,    supervisor: 3,    contract_share: 0.05}
+    - {id: 3,  share: 0.03, station_based: true,  next: 4,    supervisor: 4,    contract_share: 0.02}
+    - {id: 4,  singleton: hq,          station_based: false, next: null, supervisor: null, contract_share: 0.0}
+    - {id: 5,  share: 0.20, station_based: true,  next: 6,    supervisor: 6,    contract_share: 0.40}
+    - {id: 6,  share: 0.04, station_based: true,  next: 7,    supervisor: 7,    contract_share: 0.02}
+    - {id: 7,  singleton: per_station, station_based: true,  next: null, supervisor: null, contract_share: 0.0}
+    - {id: 8,  share: 0.15, station_based: true,  next: 9,    supervisor: 9,    contract_share: 0.40}
+    - {id: 9,  share: 0.03, station_based: true,  next: null, supervisor: 7,    contract_share: 0.02}
+    - {id: 10, share: 0.06, station_based: true,  stations: {1: 0.5, 4: 0.5}, next: 11, supervisor: 11, contract_share: 0.10}
+    - {id: 11, singleton: hq,          station_based: false, next: null, supervisor: null, contract_share: 0.0}
+    - {id: 12, share: 0.05, station_based: false, next: 14,   supervisor: 15,   contract_share: 0.05}
+    - {id: 13, share: 0.06, station_based: false, next: 14,   supervisor: 14,   contract_share: 0.05}
+    - {id: 14, share: 0.03, station_based: false, next: 15,   supervisor: 15,   contract_share: 0.02}
+    - {id: 15, singleton: hq,          station_based: false, next: null, supervisor: null, contract_share: 0.0}
+
+companies:
+  count: 4000
+  type_share: {travel_agency: 0.30, corporate: 0.25, school: 0.25, government: 0.10, community: 0.10}
+  joined_range: [2019-12-01, 2025-09-30]
+  activity_sigma: 1.1            # lognormal spread of how often a company books
+  late_probability: {travel_agency: 0.15, corporate: 0.10, school: 0.30, government: 0.45, community: 0.25}
+  mean_pay_lag_days: {travel_agency: 5, corporate: 12, school: 20, government: 35, community: 15}
+
+promos:
+  monthly_deal:
+    count_probs: [0.30, 0.50, 0.20]                 # 0, 1 or 2 deals per month
+    audience: {group: 0.50, all: 0.30, individual: 0.20}
+    discount_group: [10, 15, 20, 25]
+    discount_other: [5, 10, 15, 20, 25, 30]
+    discount_other_weights: [0.25, 0.25, 0.20, 0.15, 0.10, 0.05]
+    min_pax: {20: 0.50, 30: 0.30, 50: 0.20}
+    duration_days: [7, 31]
+    route_limited_share: 0.20
+  anniversary: {duration_days: 7, discounts: [15, 20, 25]}
+  seasonal: {months_per_year: 2, discounts: [10, 15, 20]}
+  loyalty: {discount_until_2022: 10, discount_from_2023: 12}
+
+trips:
+  seat_capacity: {300: 0.25, 450: 0.25, 600: 0.50}
+  target_load_factor: 0.70       # used to decide how many runs a day needs
+  max_load_factor: 0.95          # never plan more tickets than this share of seats
+  min_trips_per_direction: 2
+  max_trips_per_direction: 32
+  first_departure_minute: 360    # 06:00
+  last_departure_minute: 1230    # 20:30
+  duration_minutes: 47
+  to_bandung_share: {mon: 0.50, tue: 0.50, wed: 0.50, thu: 0.50, fri: 0.56, sat: 0.52, sun: 0.44}

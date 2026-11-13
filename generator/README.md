@@ -16,7 +16,7 @@ python -m hst_gen demand --seed 7 --tickets 200000   # small run for development
 python -m pytest tests -q
 ```
 
-The total is calibrated so that 2025 averages 200,000 tickets per month (about 9.2 million over 2020 to 2025); `--tickets N` fixes a smaller total for development. A fixed seed gives the same output every time. Each module draws from its own random stream (`hst_gen/rng.py`), so changing one module does not shift the numbers of another. All tunable numbers live in `config.yaml`.
+The total is calibrated so that the mature years 2022 to 2025 average 200,000 tickets per month (about 10.8 million over 2020 to 2025); `--tickets N` fixes a smaller total for development. A fixed seed gives the same output every time. Each module draws from its own random stream (`hst_gen/rng.py`), so changing one module does not shift the numbers of another. All tunable numbers live in `config.yaml`.
 
 ## Stages
 

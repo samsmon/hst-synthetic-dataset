@@ -12,13 +12,13 @@ Rules the generator must follow. Table meanings are in [tables.md](tables.md), c
 
 | Entity | Rows |
 |---|---|
-| tickets (`ticket_sales`, all channels) | about 9.2 million (2025 averages 200,000 per month, with months between 175,000 and 225,000) |
-| group tickets | 15 to 35 percent of tickets per month, about 2.3 million in total |
-| group bookings (20 to 100 passengers) | 40,000 to 70,000 |
-| trips | 25,000 to 45,000 |
-| bank statement lines | 100,000 to 200,000 |
-| customers | 1,000,000 to 2,000,000 |
-| frequent cards | 200,000 to 400,000 |
+| tickets (`ticket_sales`, all channels) | about 10.8 million. 2022 to 2025 average 200,000 per month (months between 150,000 and 235,000); 2020 and 2021 are far lower (about 36,000 and 63,000 per month) because of COVID and the opening |
+| group tickets | 15 to 35 percent of tickets per month, about 2.7 million in total |
+| group bookings (20 to 100 passengers) | 55,000 to 85,000 |
+| trips | 35,000 to 55,000 |
+| bank statement lines | 120,000 to 250,000 |
+| customers | 1,200,000 to 2,400,000 |
+| frequent cards | 250,000 to 450,000 |
 | employees | 400 to 600 over the period (about 420 active at the end of 2025) |
 
 ## Group share and group size
@@ -37,9 +37,9 @@ Daily counts are drawn first (negative binomial around the mean), then split int
 
 | Factor | Rule |
 |---|---|
-| Yearly trend | Slow growth after the COVID recovery |
+| Yearly trend | Slow growth (2 percent a year) from 2022, once the network is mature |
 | Weekly | Friday to Sunday higher |
-| COVID phases (table `covid_phase`) | `pre` until Feb 2020; `lockdown` Mar to Dec 2020 (about 10 to 20 percent of baseline); `restrictions` Jan to Sep 2021 with near zero during the 2021 mudik ban and Delta wave (Jul 2021); `recovery` Oct 2021 to Dec 2022; `normal` from 2023 |
+| COVID phases (table `covid_phase`) | `pre` until Feb 2020; `lockdown` Mar to Dec 2020 (about 10 to 20 percent of baseline); `restrictions` Jan to Sep 2021 with near zero during the 2021 mudik ban and Delta wave (Jul 2021); `recovery` Oct 2021 to Dec 2022 (volume is back to the mature level by April 2022); `normal` from 2023 |
 | Lebaran | Peak in H-7 to H+7. Dates in `calendar_event` |
 | Christmas and New Year | Peak from 20 Dec to 3 Jan |
 | School holidays | Moderate rise, stronger for school groups |
@@ -47,7 +47,7 @@ Daily counts are drawn first (negative binomial around the mean), then split int
 
 ## Trips and capacity
 
-- `trip` rows are scheduled to match demand: more runs in peak days, fewer during lockdown (about 20 to 30 runs a day in 2025). Seat capacity is 300, 450 or 600 per run.
+- `trip` rows are scheduled to match demand: more runs in peak days, fewer during lockdown (about 20 to 30 runs a day from 2022). Seat capacity is 300, 450 or 600 per run.
 - Target load factor is 40 to 90 percent in normal periods. Demand is capped by capacity, so a sold-out peak day pushes some demand to neighbouring days.
 - A ticket belongs to one trip. Its direction must match the order of its stations (Halim towards Tegalluar is `to_bandung`). `departure_date` equals the trip `service_date`.
 
@@ -147,7 +147,7 @@ Churn is built by letting some commuters stop travelling; the stop date is store
 
 ## Validation checks the generator must pass
 
-1. Ticket rows equal the total, the 2025 monthly average is within 3 percent of 200,000, and all dates fall in 2020 to 2025.
+1. Ticket rows equal the total, the 2022 to 2025 monthly average is within 3 percent of 200,000, and all dates fall in 2020 to 2025.
 2. Monthly group share is between 15 and 35 percent, and every booking has at least 20 passengers.
 3. `total_price = base_price - discount_amount + service_fee_amount` for every ticket (also a DB check).
 4. For every non-anomalous booking: ticket prices sum to `total_amount`, and allocated payments sum to `total_amount`.
