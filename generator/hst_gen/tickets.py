@@ -182,6 +182,9 @@ def generate_month(st: State, month_id: int) -> dict:
     promo_id = np.zeros(N, dtype=np.int64)
     promo_pct[:n_i] = np.where(use_card, ctx.fcc_promo[0][pidx, i_route - 1], ctx.ind_promo[0][pidx, i_route - 1])
     promo_id[:n_i] = np.where(use_card, ctx.fcc_promo[1][pidx, i_route - 1], ctx.ind_promo[1][pidx, i_route - 1])
+    before_period = purchase[:n_i] < ctx.dates[0]            # sold in the opening weeks: no promo exists yet
+    promo_pct[:n_i] = np.where(before_period, 0.0, promo_pct[:n_i])
+    promo_id[:n_i] = np.where(before_period, 0, promo_id[:n_i])
     if n_g:
         mean_base = np.bincount(g_book, weights=base_pct[n_i:], minlength=nb) / np.maximum(np.bincount(g_book, minlength=nb), 1)
         won = bk["promo_pct"].to_numpy() > mean_base

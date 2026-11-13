@@ -148,3 +148,11 @@ def test_same_seed_same_output(tmp_path):
     run_stage3(cfg, tmp_path / "b", months=(30, 31), progress=False)
     for name in ("ticket_sales", "group_booking", "customer"):
         assert (tmp_path / "a" / f"{name}.csv").read_bytes() == (tmp_path / "b" / f"{name}.csv").read_bytes()
+
+
+def test_no_promo_before_the_period_starts(tmp_path):
+    cfg = cfglib.load()
+    run_stage3(cfg, tmp_path, months=(0, 1), progress=False)
+    t = pd.read_csv(tmp_path / "ticket_sales.csv", keep_default_na=False, na_values=[""])
+    early = t[t["purchase_date"] < "2020-01-01"]
+    assert len(early) > 0 and early["promo_id"].isna().all()
