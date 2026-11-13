@@ -8,3 +8,7 @@ __pycache__/
 output/
 *.csv
 *.parquet
+*.tar.gz
+*.sql.gz
+hst_dataset_csv/
+checksums.txt
