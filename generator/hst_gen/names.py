@@ -20,7 +20,9 @@ SECTORS = ["Logistik", "Teknologi", "Konstruksi", "Energi", "Perdagangan", "Pang
 TRAVEL = ["Tour & Travel", "Wisata", "Holiday", "Travel", "Trans Wisata", "Nusantara Tour"]
 HOBBIES = ["Sepeda", "Fotografi", "Lari", "Pendaki", "Musik", "Literasi", "Otomotif", "Kuliner", "Seni"]
 GOV_UNITS = ["Balai Pelatihan Kerja", "Sekretariat Daerah", "Unit Layanan Terpadu", "Balai Pengembangan Pariwisata",
-             "Dinas Kebudayaan", "Balai Latihan Aparatur"]
+             "Dinas Kebudayaan", "Balai Latihan Aparatur", "Badan Perencanaan Pembangunan", "Balai Pengembangan Kompetensi",
+             "Unit Pelaksana Teknis Pendidikan", "Balai Pemberdayaan Masyarakat", "Sekretariat Dewan", "Balai Penelitian Daerah",
+             "Unit Layanan Pengadaan", "Balai Pelatihan Pertanian", "Badan Kepegawaian Daerah"]
 
 
 def name_pools(seed: int):
@@ -53,10 +55,19 @@ def slug(text: str) -> str:
 
 def company_name(rng: np.random.Generator, kind: str, city: str) -> str:
     w = lambda: WORDS[rng.integers(len(WORDS))]                       # noqa: E731
+
+    def two_words():
+        a, b = w(), w()
+        while b == a:
+            b = w()
+        return a, b
+
     if kind == "travel_agency":
-        return f"{w()} {w()} {TRAVEL[rng.integers(len(TRAVEL))]}"
+        a, b = two_words()
+        return f"{a} {b} {TRAVEL[rng.integers(len(TRAVEL))]}"
     if kind == "corporate":
-        return f"PT {w()} {w()} {SECTORS[rng.integers(len(SECTORS))]}"
+        a, b = two_words()
+        return f"PT {a} {b} {SECTORS[rng.integers(len(SECTORS))]}"
     if kind == "school":
         style = rng.integers(4)
         if style == 0:
@@ -64,8 +75,10 @@ def company_name(rng: np.random.Generator, kind: str, city: str) -> str:
         if style == 1:
             return f"SMK {w()} {city}"
         if style == 2:
-            return f"Universitas {w()} {w()}"
+            a, b = two_words()
+            return f"Universitas {a} {b}"
         return f"SMP Islam Al-{w()}"
     if kind == "government":
-        return f"{GOV_UNITS[rng.integers(len(GOV_UNITS))]} {city}"
-    return f"{['Komunitas', 'Paguyuban', 'Klub'][rng.integers(3)]} {HOBBIES[rng.integers(len(HOBBIES))]} {city}"
+        level = "Kota" if rng.random() < 0.5 else "Kabupaten"
+        return f"{GOV_UNITS[rng.integers(len(GOV_UNITS))]} {level} {city}"
+    return f"{['Komunitas', 'Paguyuban', 'Klub'][rng.integers(3)]} {HOBBIES[rng.integers(len(HOBBIES))]} {w()} {city}"

@@ -5,7 +5,9 @@ from pathlib import Path
 
 from . import config as cfglib
 from .demand import build_demand
+from .pipeline import export_tables, run_stage2
 from .report import summarize, svg_chart
+from .report2 import summarize_stage2
 
 
 def cmd_demand(args, cfg):
@@ -21,9 +23,20 @@ def cmd_demand(args, cfg):
           f"{int(long['group_tickets'].sum()):,} group, files in {out}")
 
 
+def cmd_stage2(args, cfg):
+    t0 = time.perf_counter()
+    tables = run_stage2(cfg)
+    took = time.perf_counter() - t0
+    out = Path(args.out) / "stage2"
+    export_tables(tables, out, ["employee", "employee_history", "company", "promo", "trip"])
+    (out / "stage2_summary.md").write_text(summarize_stage2(tables), encoding="utf-8")
+    print(f"stage 2 done in {took:.1f}s: {len(tables['employee'])} employees, {len(tables['company'])} companies, "
+          f"{len(tables['promo'])} promos, {len(tables['trip'])} trips, files in {out}")
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="hst_gen")
-    p.add_argument("command", choices=["demand"])
+    p.add_argument("command", choices=["demand", "stage2"])
     p.add_argument("--config", default=None)
     p.add_argument("--out", default="output")
     p.add_argument("--seed", type=int, default=None)
@@ -34,4 +47,4 @@ def main(argv=None):
         cfg["seed"] = args.seed
     if args.tickets is not None:
         cfg["target_tickets"] = args.tickets
-    {"demand": cmd_demand}[args.command](args, cfg)
+    {"demand": cmd_demand, "stage2": cmd_stage2}[args.command](args, cfg)

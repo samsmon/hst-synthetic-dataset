@@ -15,11 +15,11 @@ Rules the generator must follow. Table meanings are in [tables.md](tables.md), c
 | tickets (`ticket_sales`, all channels) | about 10.8 million. 2022 to 2025 average 200,000 per month (months between 150,000 and 235,000); 2020 and 2021 are far lower (about 36,000 and 63,000 per month) because of COVID and the opening |
 | group tickets | 15 to 35 percent of tickets per month, about 2.7 million in total |
 | group bookings (20 to 100 passengers) | 55,000 to 85,000 |
-| trips | 35,000 to 55,000 |
+| trips | 30,000 to 40,000 |
 | bank statement lines | 120,000 to 250,000 |
 | customers | 1,200,000 to 2,400,000 |
 | frequent cards | 250,000 to 450,000 |
-| employees | 400 to 600 over the period (about 420 active at the end of 2025) |
+| employees | about 610 over the period (about 420 active at the end of 2025) |
 
 ## Group share and group size
 
@@ -47,7 +47,7 @@ Daily counts are drawn first (negative binomial around the mean), then split int
 
 ## Trips and capacity
 
-- `trip` rows are scheduled to match demand: more runs in peak days, fewer during lockdown (about 20 to 30 runs a day from 2022). Seat capacity is 300, 450 or 600 per run.
+- `trip` rows are scheduled to match demand: more runs in peak days, fewer during lockdown (about 20 runs a day on average from 2022, up to 45 on peak days). Seat capacity is 300, 450 or 600 per run.
 - Target load factor is 40 to 90 percent in normal periods. Demand is capped by capacity, so a sold-out peak day pushes some demand to neighbouring days.
 - A ticket belongs to one trip. Its direction must match the order of its stations (Halim towards Tegalluar is `to_bandung`). `departure_date` equals the trip `service_date`.
 
@@ -96,6 +96,8 @@ A group booking qualifies when its `document_date` is inside the window, its pas
 
 - About 300 to 500 employees across five departments and 15 positions. Staff are hired and leave between 2019 and 2025, with more staff at the busy stations (Halim, Tegalluar).
 - `employee_history` records every promotion and transfer. The `employee` row matches the latest history row.
+- `employee.supervisor_id` is a holder of the supervising position on the employee's last day (end date minus one day, or the end of the period), at the same station when that position is station based.
+- A vacated station master or manager post is refilled only after the previous holder has left, so a short gap is possible but two holders never overlap.
 - Sales channels decide who issues a ticket:
 
 | Channel | `issued_by_employee_id` | `issue_station_id` |

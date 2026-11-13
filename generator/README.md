@@ -12,6 +12,7 @@ pip install -r requirements.txt
 
 ```
 python -m hst_gen demand --out ../output          # stage 1
+python -m hst_gen stage2 --out ../output          # stage 2 (runs stage 1 first)
 python -m hst_gen demand --seed 7 --tickets 200000   # small run for development
 python -m pytest tests -q
 ```
@@ -23,7 +24,7 @@ The total is calibrated so that the mature years 2022 to 2025 average 200,000 ti
 | # | Stage | Status |
 |---|---|---|
 | 1 | `daycal.py`, `demand.py`: daily tickets per route, group share per month | done |
-| 2 | people, promos, trips | planned |
+| 2 | `people.py`, `companies.py`, `promos.py`, `trips.py`: employees and history, companies, promos, schedule | done |
 | 3 | tickets and group bookings | planned |
 | 4 | FCC cards, refunds, bank statement | planned |
 | 5 | anomalies and answer keys | planned |

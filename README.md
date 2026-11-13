@@ -88,11 +88,11 @@ Lebaran dates used: 2020-05-24, 2021-05-13, 2022-05-02, 2023-04-22, 2024-04-10, 
 | tickets | about 10.8 million |
 | group tickets | 15 to 35 percent per month |
 | group bookings | 55,000 to 85,000 |
-| trips | 35,000 to 55,000 |
+| trips | 30,000 to 40,000 |
 | bank statement lines | 120,000 to 250,000 |
 | customers | 1,200,000 to 2,400,000 |
 | frequent cards | 250,000 to 450,000 |
-| employees | 400 to 600 over the period |
+| employees | about 610 over the period |
 
 ## ML and BI targets
 
