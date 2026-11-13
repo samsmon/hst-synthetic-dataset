@@ -108,13 +108,13 @@ A group booking qualifies when its `document_date` is inside the window, its pas
 
 ## Customers
 
-| Segment (generator only, in `customer_truth`) | Behaviour |
+| Segment (generator only, in `oltp_truth.customer_truth`) | Behaviour |
 |---|---|
 | `commuter` | Travels often, usually on one route, holds a frequent card and re-registers after expiry or empty quota |
 | `occasional` | A few trips per year, tends to travel in peak periods |
 | `one_time` | One trip, for example an event |
 
-Churn is built by letting some commuters stop travelling; the stop date is stored as `churn_date`. The warehouse derives its own segment from behaviour and never reads `customer_truth`.
+Churn is built by letting some commuters stop travelling; the stop date is stored as `churn_date`. Anyone who needs a segment must derive it from ticket behaviour and never read `customer_truth`.
 
 ## Frequent card rules
 
@@ -126,14 +126,14 @@ Churn is built by letting some commuters stop travelling; the stop date is store
 ## Group booking, classification and payments
 
 - A booking has one company, one route, a document date, a payment due date and one or more departure dates. `period` is the month of the first departure.
-- Bookings from the last 60 days of the dataset, plus 1 to 2 percent of older ones, stay `pending`: their tickets show `group_booking_id` NULL. The real link is in `ticket_group_truth`.
+- Bookings from the last 60 days of the dataset, plus 1 to 2 percent of older ones, stay `pending`: their tickets show `group_booking_id` NULL. The real link is in `oltp_truth.ticket_group_truth`.
 - The sum of a booking's ticket prices equals `total_amount`; `discount_amount` is the sum of ticket discounts.
-- Payment pattern per booking: single full transfer, deposit plus final payment, or instalments. One transfer can also pay several bookings of the same company (`group_booking_payment.allocated_amount`).
+- Payment pattern per booking: single full transfer, deposit plus final payment, or instalments. One transfer can also pay several bookings of the same company (`oltp_truth.group_booking_payment.allocated_amount`).
 - Payment lag follows the company type. Some companies pay late consistently. A booking is late when fully paid after `payment_due_date`.
 - Statement messages mention the booking number or company name. Some are abbreviated or misspelled.
 - The statement also holds unrelated lines: daily gateway settlement for online sales (`SETTLE`), monthly bank fee (`FEE`) and interest (`INT`), refund payouts (`REFUND`). Balances are a running total per account.
 
-## Anomalies (about 1 to 3 percent, labelled in `anomaly_label`)
+## Anomalies (about 1 to 3 percent, labelled in `oltp_truth.anomaly_label`)
 
 | Type | What is injected |
 |---|---|
@@ -163,7 +163,8 @@ Churn is built by letting some commuters stop travelling; the stop date is store
 ## Load plan
 
 1. Generate CSV per table into `output/` (ignored by git).
-2. Run `sql/01_oltp.sql`, `sql/03_reference_data.sql` and `sql/04_comments.sql`, then load the remaining OLTP tables in dependency order: employee, employee_history, company, customer, customer_truth, fcc_card, promo, group_booking and detail, trip, ticket_sales, ticket_group_truth, refund, fcc_redemption, bank_statement, group_booking_payment, anomaly_label.
-3. Run `sql/02_dwh.sql`, then build dimensions and facts from OLTP.
-4. Refresh the materialized views and rebuild `docs/data-dictionary.md` with `scripts/build_dictionary.py`.
-5. Final target: shared PostgreSQL server, schemas `oltp` and `dwh`.
+2. Run `sql/01_oltp.sql`, `sql/02_oltp_truth.sql`, `sql/03_reference_data.sql` and `sql/04_comments.sql`.
+3. Load the OLTP tables in dependency order: employee, employee_history, company, customer, fcc_card, promo, group_booking and detail, trip, ticket_sales, refund, fcc_redemption, bank_statement.
+4. Load the answer keys into `oltp_truth`: customer_truth, ticket_group_truth, group_booking_payment, anomaly_label.
+5. Rebuild `docs/data-dictionary.md` with `scripts/build_dictionary.py`.
+6. Final target: shared PostgreSQL server, schemas `oltp` and `oltp_truth`. Downstream pipelines read `oltp` only.

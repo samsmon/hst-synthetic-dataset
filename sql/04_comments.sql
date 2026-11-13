@@ -1,4 +1,5 @@
--- Table and column comments for the oltp schema. Run after 01_oltp.sql.
+-- Table and column comments for the oltp and oltp_truth schemas.
+-- Run after 01_oltp.sql and 02_oltp_truth.sql.
 -- scripts/build_dictionary.py turns these into docs/data-dictionary.md.
 
 SET search_path TO oltp;
@@ -16,7 +17,7 @@ COMMENT ON TABLE job_position IS 'Job titles with grade and department.';
 COMMENT ON TABLE employee IS 'Employees, current state. Latest employee_history row must match.';
 COMMENT ON TABLE employee_history IS 'Position and station history of each employee (promotions, transfers).';
 COMMENT ON TABLE company IS 'Fictional organisations that book group trips and pay by bank transfer.';
-COMMENT ON TABLE customer IS 'A synthetic person. Segment and churn are generator facts kept in customer_truth.';
+COMMENT ON TABLE customer IS 'A synthetic person. Segment and churn are generator facts kept in oltp_truth.customer_truth.';
 COMMENT ON TABLE fcc_card IS 'Frequent customer card with route, quota and validity.';
 COMMENT ON TABLE group_booking IS 'Group booking agreement (BAK in the source app). At least 20 passengers.';
 COMMENT ON TABLE group_booking_detail IS 'Departure dates of a group booking, one row per date.';
@@ -25,10 +26,10 @@ COMMENT ON TABLE ticket_sales IS 'One ticket per row. Main table of the dataset.
 COMMENT ON TABLE refund IS 'Refund of a ticket. The ticket status becomes refunded.';
 COMMENT ON TABLE fcc_redemption IS 'One use of a card quota; order_id equals the ticket order_id.';
 COMMENT ON TABLE bank_statement IS 'Bank account lines, including lines unrelated to group bookings.';
-COMMENT ON TABLE group_booking_payment IS 'ANSWER KEY. Which bank line paid which booking, and how much of it.';
-COMMENT ON TABLE ticket_group_truth IS 'ANSWER KEY. True booking of every group ticket.';
-COMMENT ON TABLE customer_truth IS 'ANSWER KEY. Generator segment and churn date per customer.';
-COMMENT ON TABLE anomaly_label IS 'ANSWER KEY. Rows that were deliberately corrupted.';
+COMMENT ON TABLE oltp_truth.group_booking_payment IS 'ANSWER KEY. Which bank line paid which booking, and how much of it.';
+COMMENT ON TABLE oltp_truth.ticket_group_truth IS 'ANSWER KEY. True booking of every group ticket.';
+COMMENT ON TABLE oltp_truth.customer_truth IS 'ANSWER KEY. Generator segment and churn date per customer.';
+COMMENT ON TABLE oltp_truth.anomaly_label IS 'ANSWER KEY. Rows that were deliberately corrupted.';
 
 COMMENT ON COLUMN promo.applies_to IS 'all, group, individual or fcc.';
 COMMENT ON COLUMN promo.min_pax IS 'Minimum passengers of a group booking to qualify; at least 20 when applies_to is group.';
@@ -45,7 +46,7 @@ COMMENT ON COLUMN group_booking.payment_due_date IS 'A booking is late when full
 COMMENT ON COLUMN group_booking.status IS 'pending until its tickets are classified, then checked.';
 COMMENT ON COLUMN trip.direction IS 'to_bandung or to_jakarta.';
 COMMENT ON COLUMN ticket_sales.period IS 'Month (YYYY-MM) of departure_date, enforced by a CHECK.';
-COMMENT ON COLUMN ticket_sales.group_booking_id IS 'NULL for individual tickets and for tickets of pending bookings (truth in ticket_group_truth).';
+COMMENT ON COLUMN ticket_sales.group_booking_id IS 'NULL for individual tickets and for tickets of pending bookings (truth in oltp_truth.ticket_group_truth).';
 COMMENT ON COLUMN ticket_sales.status IS 'issued, used, cancelled or refunded.';
 COMMENT ON COLUMN ticket_sales.route_id IS 'Derived from the origin and destination pair through route_segment.';
 COMMENT ON COLUMN ticket_sales.base_price IS 'Fare price plus a peak uplift in crowded windows, rounded to Rp 1,000.';
@@ -58,6 +59,6 @@ COMMENT ON COLUMN refund.reason IS 'schedule_change, customer_request, illness, 
 COMMENT ON COLUMN bank_statement.transaction_code IS 'TRF transfer, SETTLE gateway settlement, FEE bank fee, INT interest, REFUND payout, OTHER.';
 COMMENT ON COLUMN bank_statement.balance IS 'Running balance per account, in date and id order.';
 COMMENT ON COLUMN bank_statement.message IS 'Free-text transfer message; sometimes abbreviated or misspelled.';
-COMMENT ON COLUMN group_booking_payment.allocated_amount IS 'Part of the bank line applied to this booking; one line may pay several bookings.';
-COMMENT ON COLUMN customer_truth.churn_date IS 'Date the customer stopped travelling; NULL if the customer never churned.';
-COMMENT ON COLUMN anomaly_label.anomaly_type IS 'underpayment, overpayment, duplicate_payment, name_mismatch, duplicate_ticket, date_outlier or inactive_issuer.';
+COMMENT ON COLUMN oltp_truth.group_booking_payment.allocated_amount IS 'Part of the bank line applied to this booking; one line may pay several bookings.';
+COMMENT ON COLUMN oltp_truth.customer_truth.churn_date IS 'Date the customer stopped travelling; NULL if the customer never churned.';
+COMMENT ON COLUMN oltp_truth.anomaly_label.anomaly_type IS 'underpayment, overpayment, duplicate_payment, name_mismatch, duplicate_ticket, date_outlier or inactive_issuer.';

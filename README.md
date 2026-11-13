@@ -1,6 +1,6 @@
 # hst-synthetic-dataset
 
-Synthetic ticketing dataset for a fictional high-speed train (HST) operator, built for machine learning and data warehouse / BI practice. All people, companies, bank accounts and IDs are generated. Nothing here is real operational data.
+Synthetic ticketing dataset for a fictional high-speed train (HST) operator, built for machine learning and analytics practice. All people, companies, bank accounts and IDs are generated. Nothing here is real operational data.
 
 > Status: design done (docs and DDL). Generator not written yet.
 
@@ -13,7 +13,7 @@ Synthetic ticketing dataset for a fictional high-speed train (HST) operator, bui
 - Repeat customers (commuters, occasional, one-time) so churn and frequency can be modelled.
 - Employees with position, NIP and history, linked to the tickets they issue, the bookings they handle, the cards they register and the refunds they process.
 - Tickets with status and refunds, trips with capacity, fares by route and class.
-- Two layers: an operational schema (OLTP) and a star schema (DWH), both for PostgreSQL.
+- A pure dataset for PostgreSQL: one operational schema (`oltp`), plus a separate schema (`oltp_truth`) with answer keys for ML labels and checks. Downstream modelling and ETL are out of scope of this repo.
 - Everything is in English (tables, columns, values, messages). Only generated person and company names are Indonesian.
 
 The timeline is fictional: the operator is assumed to run since 2020, at a deliberately smaller scale than any real railway. Do not present the data as real figures.
@@ -27,7 +27,7 @@ The operational layer extends two existing Laravel apps. Source-to-new names are
 | group-ticket verification app | `dokumen_bak`, `dokumen_bak_detail`, `data_ticketsales`, `dokumen_rekeningkoran` | group bookings, tickets, bank statement |
 | frequent card admin app | `maindata` (cards), `subdata` (redemptions) | frequent customer card (FCC) and quota redemption |
 
-New in this dataset: employees (`employee`, `employee_history`, `job_position`, `department`), `station`, `route_segment`, `fare`, `trip`, `sales_channel`, `promo`, `refund`, `company`, `customer`, calendar tables, and the answer-key tables (`customer_truth`, `ticket_group_truth`, `group_booking_payment`, `anomaly_label`).
+New in this dataset: employees (`employee`, `employee_history`, `job_position`, `department`), `station`, `route_segment`, `fare`, `trip`, `sales_channel`, `promo`, `refund`, `company`, `customer`, calendar tables, and the answer keys in schema `oltp_truth` (`customer_truth`, `ticket_group_truth`, `group_booking_payment`, `anomaly_label`).
 
 ## Entity relations
 
@@ -37,8 +37,6 @@ erDiagram
     promo ||--o{ group_booking : "applied"
     group_booking ||--o{ group_booking_detail : "departure dates"
     group_booking ||--o{ ticket_sales : "group_booking_id"
-    group_booking ||--o{ group_booking_payment : "paid by"
-    bank_statement ||--o{ group_booking_payment : "allocated to"
     customer ||--o{ fcc_card : "owns"
     fcc_card ||--o{ fcc_redemption : "card_id"
     fcc_redemption ||--|| ticket_sales : "order_id"
@@ -64,7 +62,7 @@ erDiagram
     employee }o--o| station : "home station"
 ```
 
-Reading guide: a group booking groups tickets and is paid through one or more bank lines (a line can pay several bookings). A card redemption produces a ticket with the same `order_id`. Staffed channels record the issuing employee and station; self-service channels leave them empty. Answer-key tables are left out of the diagram.
+Reading guide: a group booking groups tickets and is paid through one or more bank lines (a line can pay several bookings; the true allocation is an answer key). A card redemption produces a ticket with the same `order_id`. Staffed channels record the issuing employee and station; self-service channels leave them empty. The `oltp_truth` tables are left out of the diagram.
 
 ## Frequent card rules (from the source app)
 
@@ -104,11 +102,11 @@ Seven tasks with label, features, time split and metric are defined in [docs/ml-
 
 - PostgreSQL DDL, reference data and comments (`sql/01` to `sql/04`), and `.sql` load scripts.
 - `.csv` per table.
-- Target: shared PostgreSQL server, schemas `oltp` and `dwh`.
+- Target: shared PostgreSQL server, schemas `oltp` and `oltp_truth`. Downstream pipelines read `oltp` only.
 
 ## Roadmap
 
-1. Design document and PostgreSQL DDL (OLTP and DWH). Done: see [docs/design.md](docs/design.md), [docs/tables.md](docs/tables.md), [docs/data-dictionary.md](docs/data-dictionary.md), [docs/ml-targets.md](docs/ml-targets.md) and `sql/`.
+1. Design document and PostgreSQL DDL. Done: see [docs/design.md](docs/design.md), [docs/tables.md](docs/tables.md), [docs/data-dictionary.md](docs/data-dictionary.md), [docs/ml-targets.md](docs/ml-targets.md) and `sql/`.
 2. Python generator with a fixed random seed, so runs are reproducible.
 3. Validation checks (quota, expiry, payment totals against booking totals).
 4. Load into the shared PostgreSQL server.

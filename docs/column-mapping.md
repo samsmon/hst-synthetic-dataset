@@ -49,10 +49,10 @@ How source names (Indonesian or mixed) map to the English names used here. Colum
 
 | Column | Source or earlier value | Here |
 |---|---|---|
-| `customer_truth.segment` | komuter, sesekali, sekali | `commuter`, `occasional`, `one_time` (no longer a customer column) |
+| `oltp_truth.customer_truth.segment` | komuter, sesekali, sekali | `commuter`, `occasional`, `one_time` (no longer a customer column) |
 | `ticket_sales.seat_class` | ekonomi, bisnis | `economy`, `business` (plus `premium`, `first`) |
 | `bank_statement.direction` | CR, DB | `credit`, `debit` |
-| `group_booking_payment.payment_type` | lunas, dp, pelunasan, cicilan, lebih_bayar | `full`, `deposit`, `final`, `instalment`, `overpayment` |
-| `dim_date.covid_phase` | ppkm | `restrictions` |
+| `oltp_truth.group_booking_payment.payment_type` | lunas, dp, pelunasan, cicilan, lebih_bayar | `full`, `deposit`, `final`, `instalment`, `overpayment` |
+| `covid_phase.phase` | ppkm | `restrictions` |
 
 People and company names stay Indonesian (generated with an Indonesian locale) for realism. Everything else, including column names, values and transfer messages, is English.
