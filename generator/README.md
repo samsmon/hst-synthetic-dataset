@@ -15,6 +15,8 @@ python -m hst_gen demand --out ../output          # stage 1
 python -m hst_gen stage2 --out ../output          # stage 2 (runs stage 1 first)
 python -m hst_gen stage3 --out ../output          # stage 3: tickets, bookings, customers (about 3 minutes for 10.8 million tickets)
 python -m hst_gen stage4 --out ../output          # stage 4: FCC cards, refunds, bank statements and payments
+python -m hst_gen stage5 --out ../output          # stage 5: anomalies and answer keys
+python scripts/load_db.py                        # stage 6: load schema, copy CSVs, run checks
 python -m hst_gen demand --seed 7 --tickets 200000   # small run for development
 python -m pytest tests -q
 ```
@@ -29,8 +31,8 @@ The total is calibrated so that the mature years 2022 to 2025 average 200,000 ti
 | 2 | `people.py`, `companies.py`, `promos.py`, `trips.py`: employees and history, companies, promos, schedule | done |
 | 3 | `ctx.py`, `bookings.py`, `customers.py`, `tickets.py`, `pricing.py`, `staff.py`, `stage3.py`: tickets, group bookings, customers, streamed to CSV month by month | done |
 | 4 | `fcc.py`, `refunds.py`, `bank.py`, `stage4.py`, `report4.py`: FCC cards and redemptions, ticket status and refunds, bank statement and booking payments | done |
-| 5 | anomalies and answer keys | planned |
-| 6 | export, validation, load | planned |
+| 5 | `stage5.py`, `anomalies.py`, `report5.py`: anomalies and answer keys | done |
+| 6 | `load_db.py`, `validate_db.py`: export, validation, load into PostgreSQL | done |
 | 7 | full run of 1,000,000 tickets | planned |
 
 ## Stage 1 output
