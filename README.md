@@ -6,15 +6,17 @@ Synthetic ticketing dataset for a fictional high-speed train (HST) operator, bui
 
 ## Goals
 
-- About 1,000,000 ticket rows (`ticket_sales`) between 2020 and 2025.
-- Demand that follows real-world patterns: COVID collapse and recovery, Lebaran peaks, Christmas and New Year, school holidays, weekends.
-- Pricing and discounts that react to demand: crowded periods get small discounts, quiet periods get larger ones, groups get tiered discounts, and one fictional company anniversary promo runs each year.
+- About 1,000,000 ticket rows (`ticket_sales`) between 2020 and 2025, from all sales channels.
+- Group travel is a random 15 to 35 percent of tickets each month. A group has at least 20 passengers.
+- Demand that follows real-world patterns: COVID collapse and recovery, Lebaran peaks, Christmas and New Year, school holidays, weekends, limited by trip capacity.
+- Pricing and discounts that react to demand: crowded periods get small discounts, quiet periods larger ones, groups get tiered discounts, and random promos run each month (for example a "February Deals" offer of 20 percent for groups of at least 20 passengers).
 - Repeat customers (commuters, occasional, one-time) so churn and frequency can be modelled.
-- Employees with position, NIP and home station, linked to the tickets they issue, the bookings they handle and the cards they register.
+- Employees with position, NIP and history, linked to the tickets they issue, the bookings they handle, the cards they register and the refunds they process.
+- Tickets with status and refunds, trips with capacity, fares by route and class.
 - Two layers: an operational schema (OLTP) and a star schema (DWH), both for PostgreSQL.
 - Everything is in English (tables, columns, values, messages). Only generated person and company names are Indonesian.
 
-The timeline is fictional: the operator is assumed to run since 2020. Do not present the data as real figures of any actual railway.
+The timeline is fictional: the operator is assumed to run since 2020, at a deliberately smaller scale than any real railway. Do not present the data as real figures.
 
 ## Source schemas
 
@@ -25,36 +27,44 @@ The operational layer extends two existing Laravel apps. Source-to-new names are
 | group-ticket verification app | `dokumen_bak`, `dokumen_bak_detail`, `data_ticketsales`, `dokumen_rekeningkoran` | group bookings, tickets, bank statement |
 | frequent card admin app | `maindata` (cards), `subdata` (redemptions) | frequent customer card (FCC) and quota redemption |
 
-New in this dataset: `employee`, `position`, `department`, `station` (richer), `sales_channel`, `company`, `customer`, `promo`, plus the answer-key tables `group_booking_payment` and `anomaly_label`.
+New in this dataset: employees (`employee`, `employee_history`, `job_position`, `department`), `station`, `route_segment`, `fare`, `trip`, `sales_channel`, `promo`, `refund`, `company`, `customer`, calendar tables, and the answer-key tables (`customer_truth`, `ticket_group_truth`, `group_booking_payment`, `anomaly_label`).
 
 ## Entity relations
 
 ```mermaid
 erDiagram
     company ||--o{ group_booking : "books"
+    promo ||--o{ group_booking : "applied"
     group_booking ||--o{ group_booking_detail : "departure dates"
     group_booking ||--o{ ticket_sales : "group_booking_id"
     group_booking ||--o{ group_booking_payment : "paid by"
-    bank_statement ||--o| group_booking_payment : "matched to"
+    bank_statement ||--o{ group_booking_payment : "allocated to"
     customer ||--o{ fcc_card : "owns"
     fcc_card ||--o{ fcc_redemption : "card_id"
     fcc_redemption ||--|| ticket_sales : "order_id"
     customer ||--o{ ticket_sales : "travels"
+    trip ||--o{ ticket_sales : "carries"
+    fare ||--o{ ticket_sales : "priced by"
+    ticket_sales ||--o| refund : "refunded as"
+    route ||--o{ route_segment : "has"
+    route ||--o{ fare : "has"
+    route ||--o{ ticket_sales : "route"
+    station ||--o{ route_segment : "ends"
+    station ||--o{ ticket_sales : "origin / destination / issue"
+    sales_channel ||--o{ ticket_sales : "sold via"
+    promo ||--o{ ticket_sales : "applied"
     employee ||--o{ ticket_sales : "issued_by"
     employee ||--o{ group_booking : "created / verified"
     employee ||--o{ fcc_card : "registered_by"
     employee ||--o{ fcc_redemption : "redeemed_by"
-    employee }o--|| position : "has"
-    position }o--|| department : "in"
+    employee ||--o{ refund : "processed_by"
+    employee ||--o{ employee_history : "career"
+    employee }o--|| job_position : "has"
+    job_position }o--|| department : "in"
     employee }o--o| station : "home station"
-    station ||--o{ ticket_sales : "origin / destination / issue"
-    sales_channel ||--o{ ticket_sales : "sold via"
-    promo ||--o{ ticket_sales : "applied"
-    route ||--o{ group_booking : "route"
-    route ||--o{ fcc_card : "route"
 ```
 
-Reading guide: a group booking groups tickets and is paid through one or more bank statement lines. A card redemption produces a ticket with the same `order_id`. Staffed channels record the issuing employee and station; self-service channels leave them empty.
+Reading guide: a group booking groups tickets and is paid through one or more bank lines (a line can pay several bookings). A card redemption produces a ticket with the same `order_id`. Staffed channels record the issuing employee and station; self-service channels leave them empty. Answer-key tables are left out of the diagram.
 
 ## Frequent card rules (from the source app)
 
@@ -71,37 +81,34 @@ Route codes: `01` Jakarta to Bandung, `02` Jakarta to Karawang, `03` Karawang to
 daily volume = baseline x yearly trend x seasonality x event effect x noise
 ```
 
-Lebaran dates used: 2020-05-24, 2021-05-13, 2022-05-02, 2023-04-22, 2024-04-10, 2025-03-31.
+Lebaran dates used: 2020-05-24, 2021-05-13, 2022-05-02, 2023-04-22, 2024-04-10, 2025-03-31. Full rules are in [docs/design.md](docs/design.md).
 
 ## Planned size
 
 | Entity | Approx. rows |
 |---|---|
 | tickets | 1,000,000 |
-| group bookings | 20,000 to 30,000 |
-| bank statement lines | 40,000 to 60,000 |
+| group tickets | 15 to 35 percent per month |
+| group bookings | 4,000 to 9,000 |
+| trips | 4,000 to 12,000 |
+| bank statement lines | 12,000 to 25,000 |
 | customers | 150,000 to 250,000 |
 | frequent cards | 30,000 to 50,000 |
 | employees | 300 to 500 |
 
 ## ML and BI targets
 
-- Daily demand per route.
-- Discount amount.
-- Customer churn and visit frequency.
-- Late or short payment of a group booking.
-- Sales workload and performance per employee.
-- Injected anomalies (underpayment, duplicates, name mismatch), marked in `anomaly_label`.
+Seven tasks with label, features, time split and metric are defined in [docs/ml-targets.md](docs/ml-targets.md): demand forecasting, discount prediction, customer churn, late payment, payment matching, group ticket classification and anomaly detection.
 
 ## Output
 
-- PostgreSQL DDL and `.sql` load scripts.
+- PostgreSQL DDL, reference data and comments (`sql/01` to `sql/04`), and `.sql` load scripts.
 - `.csv` per table.
 - Target: shared PostgreSQL server, schemas `oltp` and `dwh`.
 
 ## Roadmap
 
-1. Design document and PostgreSQL DDL (OLTP and DWH). Done: see [docs/design.md](docs/design.md), [docs/tables.md](docs/tables.md), [docs/column-mapping.md](docs/column-mapping.md) and `sql/`.
+1. Design document and PostgreSQL DDL (OLTP and DWH). Done: see [docs/design.md](docs/design.md), [docs/tables.md](docs/tables.md), [docs/data-dictionary.md](docs/data-dictionary.md), [docs/ml-targets.md](docs/ml-targets.md) and `sql/`.
 2. Python generator with a fixed random seed, so runs are reproducible.
 3. Validation checks (quota, expiry, payment totals against booking totals).
 4. Load into the shared PostgreSQL server.

@@ -1,6 +1,8 @@
 -- DWH layer: star schema built from the oltp schema (PostgreSQL 14+).
 -- Dimensions use surrogate "<dim>_key" columns; facts keep the oltp id as a
 -- degenerate key. Column names match the oltp layer where the concept is the same.
+-- Answer-key tables (*_truth, group_booking_payment, anomaly_label) are not
+-- loaded into the warehouse except as labels for ML, see docs/ml-targets.md.
 
 CREATE SCHEMA IF NOT EXISTS dwh;
 SET search_path TO dwh;
@@ -43,7 +45,9 @@ CREATE TABLE dim_route (
     destination_city text NOT NULL
 );
 
--- Segment can change over time, so this dimension is SCD type 2.
+-- Segment is derived from behaviour (recency, frequency, value) at load time,
+-- never copied from customer_truth. It is recomputed each January and July,
+-- so the dimension is SCD type 2.
 CREATE TABLE dim_customer (
     customer_key bigint PRIMARY KEY,
     customer_id  bigint NOT NULL,                 -- oltp.customer.id
@@ -52,7 +56,7 @@ CREATE TABLE dim_customer (
     gender       char(1),
     age_group    text,
     city         text,
-    segment      text NOT NULL,
+    segment      text NOT NULL,                   -- derived: new, regular, frequent, lapsed
     has_fcc_card boolean NOT NULL DEFAULT false,
     valid_from   date NOT NULL,
     valid_to     date,
@@ -69,8 +73,7 @@ CREATE TABLE dim_company (
     city         text NOT NULL
 );
 
--- Position and department are flattened in. SCD type 2: a promotion or a move
--- to another station creates a new row.
+-- Built from oltp.employee_history: a promotion or transfer opens a new row.
 CREATE TABLE dim_employee (
     employee_key       bigint PRIMARY KEY,
     employee_id        bigint NOT NULL,           -- oltp.employee.id
@@ -88,13 +91,15 @@ CREATE TABLE dim_employee (
     valid_to           date,
     is_current         boolean NOT NULL DEFAULT true
 );
-CREATE INDEX ix_dim_employee_id ON dim_employee (employee_id, is_current);
+CREATE INDEX ix_dim_employee_id ON dim_employee (employee_id, valid_from);
 
 CREATE TABLE dim_promo (
     promo_key    smallint PRIMARY KEY,            -- 0 = no promo
     promo_code   text UNIQUE,
     name         text NOT NULL,
     type         text NOT NULL,
+    applies_to   text NOT NULL,
+    min_pax      smallint,
     discount_pct numeric(5,2) NOT NULL
 );
 
@@ -119,6 +124,7 @@ CREATE TABLE dim_sales_channel (
 CREATE TABLE fact_ticket (
     ticket_sales_id        bigint PRIMARY KEY,    -- oltp.ticket_sales.id
     order_id               text NOT NULL,
+    trip_id                bigint NOT NULL,       -- degenerate, see fact_trip
     purchase_date_key      int NOT NULL REFERENCES dim_date(date_key),
     departure_date_key     int NOT NULL REFERENCES dim_date(date_key),
     origin_station_key     smallint NOT NULL REFERENCES dim_station(station_key),
@@ -133,26 +139,52 @@ CREATE TABLE fact_ticket (
     payment_method_key     smallint NOT NULL REFERENCES dim_payment_method(payment_method_key),
     sales_channel_key      smallint NOT NULL REFERENCES dim_sales_channel(sales_channel_key),
     group_booking_id       bigint,                -- degenerate, NULL for individual tickets
+    ticket_status          text NOT NULL,
     is_group               boolean NOT NULL,
     is_fcc_redemption      boolean NOT NULL,
     lead_days              int NOT NULL,          -- departure - purchase
     base_price             int NOT NULL,
     discount_pct           numeric(5,2) NOT NULL,
     discount_amount        int NOT NULL,
-    tax_amount             int NOT NULL,
+    service_fee_amount     int NOT NULL,
     total_price            int NOT NULL
 );
 CREATE INDEX ix_ft_departure ON fact_ticket (departure_date_key);
 CREATE INDEX ix_ft_customer ON fact_ticket (customer_key);
 CREATE INDEX ix_ft_employee ON fact_ticket (employee_key);
 CREATE INDEX ix_ft_route ON fact_ticket (route_key, departure_date_key);
+CREATE INDEX ix_ft_trip ON fact_ticket (trip_id);
+
+CREATE TABLE fact_trip (
+    trip_id           bigint PRIMARY KEY,         -- oltp.trip.id
+    service_date_key  int NOT NULL REFERENCES dim_date(date_key),
+    trip_no           text NOT NULL,
+    direction         text NOT NULL,
+    departure_time    time NOT NULL,
+    seat_capacity     int NOT NULL,
+    tickets_sold      int NOT NULL,               -- issued and used, not cancelled or refunded
+    load_factor       numeric(5,4) NOT NULL       -- tickets_sold / seat_capacity
+);
+
+CREATE TABLE fact_refund (
+    refund_id         bigint PRIMARY KEY,         -- oltp.refund.id
+    ticket_sales_id   bigint NOT NULL,
+    refund_date_key   int NOT NULL REFERENCES dim_date(date_key),
+    employee_key      bigint REFERENCES dim_employee(employee_key),
+    refund_amount     int NOT NULL,
+    refund_fee        int NOT NULL,
+    reason            text NOT NULL,
+    days_before_departure int NOT NULL
+);
 
 CREATE TABLE fact_group_booking (
     group_booking_id      bigint PRIMARY KEY,     -- oltp.group_booking.id
     company_key           bigint NOT NULL REFERENCES dim_company(company_key),
     document_date_key     int NOT NULL REFERENCES dim_date(date_key),
+    payment_due_date_key  int NOT NULL REFERENCES dim_date(date_key),
     first_departure_key   int REFERENCES dim_date(date_key),
     route_key             smallint NOT NULL REFERENCES dim_route(route_key),
+    promo_key             smallint NOT NULL REFERENCES dim_promo(promo_key),
     created_by_employee_key  bigint REFERENCES dim_employee(employee_key),
     verified_by_employee_key bigint REFERENCES dim_employee(employee_key),
     passenger_count       int NOT NULL,
@@ -161,20 +193,25 @@ CREATE TABLE fact_group_booking (
     paid_amount           bigint NOT NULL,
     payment_gap           bigint NOT NULL,        -- total_amount - paid_amount
     days_to_full_payment  int,                    -- NULL while unpaid
-    is_late               boolean,
+    is_late               boolean,                -- full payment after payment_due_date, or still unpaid after it
     status                text NOT NULL
 );
 
+-- Grain: one allocation of a bank line to a booking. Lines that pay no booking
+-- (settlement, fees, interest) have a NULL booking.
 CREATE TABLE fact_payment (
-    bank_statement_id bigint PRIMARY KEY,         -- oltp.bank_statement.id
-    date_key          int NOT NULL REFERENCES dim_date(date_key),
-    company_key       bigint REFERENCES dim_company(company_key),
-    group_booking_id  bigint,                     -- from oltp.group_booking_payment
-    payment_type      text,
-    amount            numeric(14,2) NOT NULL,
+    payment_key        bigint PRIMARY KEY,        -- generated at load
+    bank_statement_id  bigint NOT NULL,           -- oltp.bank_statement.id
+    date_key           int NOT NULL REFERENCES dim_date(date_key),
+    company_key        bigint REFERENCES dim_company(company_key),
+    group_booking_id   bigint,
+    transaction_code   text NOT NULL,
+    payment_type       text,
+    amount             numeric(14,2) NOT NULL,
     days_after_booking int
 );
 CREATE INDEX ix_fp_booking ON fact_payment (group_booking_id);
+CREATE INDEX ix_fp_statement ON fact_payment (bank_statement_id);
 
 CREATE TABLE fact_fcc_redemption (
     fcc_redemption_id  bigint PRIMARY KEY,        -- oltp.fcc_redemption.id
@@ -192,12 +229,14 @@ CREATE TABLE fact_fcc_redemption (
 CREATE MATERIALIZED VIEW mv_daily_route_demand AS
 SELECT t.departure_date_key,
        t.route_key,
-       count(*)                                    AS tickets,
-       sum(t.total_price)                          AS revenue,
-       avg(t.discount_pct)                         AS avg_discount_pct,
-       count(*) FILTER (WHERE t.is_group)          AS group_tickets,
-       count(*) FILTER (WHERE t.is_fcc_redemption) AS fcc_tickets
+       count(*)                                          AS tickets,
+       sum(t.total_price)                                AS revenue,
+       avg(t.discount_pct)                               AS avg_discount_pct,
+       count(*) FILTER (WHERE t.is_group)                AS group_tickets,
+       count(*) FILTER (WHERE t.is_fcc_redemption)       AS fcc_tickets,
+       count(*) FILTER (WHERE t.ticket_status = 'refunded') AS refunded_tickets
 FROM fact_ticket t
+WHERE t.ticket_status <> 'cancelled'
 GROUP BY t.departure_date_key, t.route_key;
 
 CREATE UNIQUE INDEX ix_mv_daily_route ON mv_daily_route_demand (departure_date_key, route_key);
