@@ -11,6 +11,7 @@ pip install -r requirements.txt
 ## Run
 
 ```
+python -m hst_gen all --tickets 1000000 --out ../output   # full end-to-end run (stages 1-5)
 python -m hst_gen demand --out ../output          # stage 1
 python -m hst_gen stage2 --out ../output          # stage 2 (runs stage 1 first)
 python -m hst_gen stage3 --out ../output          # stage 3: tickets, bookings, customers (about 3 minutes for 10.8 million tickets)
@@ -33,7 +34,7 @@ The total is calibrated so that the mature years 2022 to 2025 average 200,000 ti
 | 4 | `fcc.py`, `refunds.py`, `bank.py`, `stage4.py`, `report4.py`: FCC cards and redemptions, ticket status and refunds, bank statement and booking payments | done |
 | 5 | `stage5.py`, `anomalies.py`, `report5.py`: anomalies and answer keys | done |
 | 6 | `load_db.py`, `validate_db.py`: export, validation, load into PostgreSQL | done |
-| 7 | full run of 1,000,000 tickets | planned |
+| 7 | full run of 1,000,000 tickets | done |
 
 ## Stage 1 output
 

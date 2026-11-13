@@ -66,9 +66,20 @@ def cmd_stage5(args, cfg):
     print(f"stage 5 done in {res['took']:.1f}s: {len(res['anomalies']):,} anomaly labels, files in {out}")
 
 
+def cmd_all(args, cfg):
+    t0 = time.perf_counter()
+    cmd_demand(args, cfg)
+    cmd_stage2(args, cfg)
+    cmd_stage3(args, cfg)
+    cmd_stage4(args, cfg)
+    cmd_stage5(args, cfg)
+    took = time.perf_counter() - t0
+    print(f"all stages completed in {took:.1f}s, files in {args.out}")
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="hst_gen")
-    p.add_argument("command", choices=["demand", "stage2", "stage3", "stage4", "stage5"])
+    p.add_argument("command", choices=["demand", "stage2", "stage3", "stage4", "stage5", "all"])
     p.add_argument("--config", default=None)
     p.add_argument("--out", default="output")
     p.add_argument("--seed", type=int, default=None)
@@ -79,4 +90,12 @@ def main(argv=None):
         cfg["seed"] = args.seed
     if args.tickets is not None:
         cfg["target_tickets"] = args.tickets
-    {"demand": cmd_demand, "stage2": cmd_stage2, "stage3": cmd_stage3, "stage4": cmd_stage4, "stage5": cmd_stage5}[args.command](args, cfg)
+    cmds = {
+        "demand": cmd_demand,
+        "stage2": cmd_stage2,
+        "stage3": cmd_stage3,
+        "stage4": cmd_stage4,
+        "stage5": cmd_stage5,
+        "all": cmd_all,
+    }
+    cmds[args.command](args, cfg)
