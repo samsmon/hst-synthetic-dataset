@@ -1,15 +1,16 @@
 # HST Synthetic Dataset
 
-[![Release](https://img.shields.io/github/v/release/samsmon/hst-synthetic-dataset?color=blue&label=Release)](https://github.com/samsmon/hst-synthetic-dataset/releases/tag/v0.2.0)
-[![Dataset Rows](https://img.shields.io/badge/Dataset%20Rows-18.1M-success)](https://github.com/samsmon/hst-synthetic-dataset/releases/tag/v0.2.0)
+[![Release](https://img.shields.io/github/v/release/samsmon/hst-synthetic-dataset?color=blue&label=Release)](https://github.com/samsmon/hst-synthetic-dataset/releases/tag/v0.3.0)
+[![Analytics Mart](https://img.shields.io/badge/DWBI%20Mart-10.8M%20Tickets%20(Parquet%20%7C%20CSV)-orange)](docs/dwbi-guide.md)
+[![Dataset Rows](https://img.shields.io/badge/Dataset%20Rows-18.1M-success)](https://github.com/samsmon/hst-synthetic-dataset/releases/tag/v0.3.0)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Schemas%20oltp%20%7C%20oltp__truth-blue)](sql/)
 [![Python Tests](https://img.shields.io/badge/Tests-49%2F49%20Passing-brightgreen)](generator/tests/)
 [![Integrity Checks](https://img.shields.io/badge/SQL%20Checks-30%2F30%20Passed-brightgreen)](sql/05_checks.sql)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-An enterprise-scale relational synthetic dataset modelling 6 full operating years (2020 through 2025) of high-speed passenger rail operations on the Jakarta–Bandung corridor. 
+An enterprise-scale relational and dimensional synthetic dataset modelling 6 full operating years (2020 through 2025) of high-speed passenger rail operations on the Jakarta–Bandung corridor. 
 
-Designed specifically for **machine learning benchmarks, analytics engineering, fraud & anomaly detection, and database stress testing**, this repository packages over **18 million records** across 17 relational database tables and reference datasets, complete with realistic economic shocks, directional holiday rushes, commuter rhythms, and segregated ground-truth keys.
+Designed specifically for **DWBI coursework, machine learning benchmarks, analytics engineering, fraud & anomaly detection, and database stress testing**, this repository packages over **18 million records** across 17 relational database tables and a single denormalized **10.8M ticket analytics mart**, complete with realistic economic shocks, directional holiday rushes, commuter rhythms, and segregated ground-truth keys.
 
 > All passengers, corporate entities, bank accounts, NIKs, and employee identities are synthetically generated. Nothing here contains real-world operational or private data.
 
@@ -17,15 +18,48 @@ Designed specifically for **machine learning benchmarks, analytics engineering, 
 
 ## Download & Quickstart
 
-Pre-packaged full release assets are available on [GitHub Releases v0.2.0](https://github.com/samsmon/hst-synthetic-dataset/releases/tag/v0.2.0):
+Pre-packaged release assets are available on [GitHub Releases](https://github.com/samsmon/hst-synthetic-dataset/releases):
+
+### 1. Analytics Wide Mart (`v0.3.0` — Recommended for DWBI & Dashboards)
+
+Denormalized star-schema dataset joining 10.8M ticket sales with customers, trips, promos, corporate bookings, FCC loyalty cards, and refund measures. Complete documentation in the **[DWBI Guide](docs/dwbi-guide.md)**.
+
+| Asset | Format | Size | SHA256 | Description |
+|---|---|---|---|---|
+| **[`hst_analytics_wide_v0.3.0.parquet`](https://github.com/samsmon/hst-synthetic-dataset/releases/download/v0.3.0/hst_analytics_wide_v0.3.0.parquet)** | Parquet (ZSTD) | 220 MB | `6ffd096975dbcedf...` | Columnar format optimized for DuckDB, Power BI, Tableau, Polars, and Pandas |
+| **[`hst_analytics_wide_v0.3.0.csv.gz`](https://github.com/samsmon/hst-synthetic-dataset/releases/download/v0.3.0/hst_analytics_wide_v0.3.0.csv.gz)** | CSV (GZIP) | 394 MB | `7238827827cc6ca8...` | Universal compressed CSV for PostgreSQL COPY, BigQuery, Snowflake, and Excel |
+| **[`checksums.txt`](https://github.com/samsmon/hst-synthetic-dataset/releases/download/v0.3.0/checksums.txt)** | Text | 148 B | — | SHA256 hashes for download verification |
+
+Query 10.8M rows in seconds with DuckDB:
+```python
+import duckdb
+
+# Sub-second analytical query directly over Parquet
+duckdb.sql("""
+SELECT 
+    season_type,
+    travel_direction,
+    time_slot,
+    COUNT(*) AS total_tickets,
+    ROUND(SUM(net_revenue) / 1e9, 2) AS net_revenue_billion_idr
+FROM 'hst_analytics_wide_v0.3.0.parquet'
+WHERE ticket_status = 'used'
+GROUP BY 1, 2, 3
+ORDER BY 4 DESC
+LIMIT 10;
+""").show()
+```
+
+### 2. Normalized Relational Database (`v0.2.0`)
+
+Full 17-table relational schema partitioned into operational (`oltp`) and evaluation (`oltp_truth`) layers:
 
 | Asset | Size | SHA256 | Description |
 |---|---|---|---|
 | **[`hst_dataset_csv_v0.2.0.tar.gz`](https://github.com/samsmon/hst-synthetic-dataset/releases/download/v0.2.0/hst_dataset_csv_v0.2.0.tar.gz)** | 644 MB | `2cee9d4c6400379b...` | 20 CSV files partitioned by schema (`oltp/`, `oltp_truth/`, `reference/`) |
 | **[`hst_dataset_postgres_v0.2.0.sql.gz`](https://github.com/samsmon/hst-synthetic-dataset/releases/download/v0.2.0/hst_dataset_postgres_v0.2.0.sql.gz)** | 651 MB | `bd49de2bb7b1787d...` | All-in-one PostgreSQL dump (DDL, constraints, table comments, and COPY data) |
-| **[`checksums.txt`](https://github.com/samsmon/hst-synthetic-dataset/releases/download/v0.2.0/checksums.txt)** | 199 B | — | SHA256 checksums for download verification |
 
-### 1. One-Line Restore to PostgreSQL
+#### One-Line Restore to PostgreSQL
 
 ```bash
 # Create target database

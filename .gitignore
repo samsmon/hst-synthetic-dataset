@@ -10,5 +10,7 @@ output/
 *.parquet
 *.tar.gz
 *.sql.gz
+*.csv.gz
+*.gz
 hst_dataset_csv/
 checksums.txt
